@@ -78,12 +78,25 @@ struct SourceSettingsView: View {
                 if !appState.sources.isEmpty {
                     ForEach(appState.sources) { source in
                         HStack {
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(source.name)
                                     .font(.headline)
                                 Text(source.type == .m3u ? "M3U Playlist" : "Xtream Codes")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                
+                                // Show summary if this is the current source
+                                if appState.currentSource?.id == source.id {
+                                    HStack(spacing: 12) {
+                                        Label("\(appState.categories.count)", systemImage: "folder")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        Label("\(appState.channels.count)", systemImage: "tv")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.top, 2)
+                                }
                             }
                             
                             Spacer()
@@ -150,76 +163,155 @@ struct SourceSettingsView: View {
 }
 
 struct AddSourceView: View {
-    var appState: AppState
+    @Bindable var appState: AppState
     @Environment(\.dismiss) var dismiss
     
     @State private var name: String = "My Playlist"
-    @State private var type: StreamType = .m3u
-    
-    // M3U
+    @State private var sourceType: StreamType = .m3u
     @State private var m3uUrl: String = ""
-    
-    // Xtream
     @State private var xtreamUrl: String = ""
-    @State private var xtreamUser: String = ""
-    @State private var xtreamPass: String = ""
-    
+    @State private var xtreamUsername: String = ""
+    @State private var xtreamPassword: String = ""
     @FocusState private var isNameFieldFocused: Bool
+    @State private var validationError: String?
     
     var body: some View {
-        Form {
-            Section("Details") {
-                TextField("Name", text: $name)
+        VStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Name")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                TextField("", text: $name)
                     .focused($isNameFieldFocused)
-                Picker("Type", selection: $type) {
-                    Text("M3U Playlist").tag(StreamType.m3u)
-                    Text("Xtream Codes").tag(StreamType.xtream)
-                }
-                .pickerStyle(.segmented)
             }
             
-            Section("Configuration") {
-                if type == .m3u {
-                    TextField("M3U URL", text: $m3uUrl)
-                        .onSubmit { addNewSource() }
-                } else {
-                    TextField("Server URL", text: $xtreamUrl)
-                        .onSubmit { addNewSource() }
-                    TextField("Username", text: $xtreamUser)
-                        .onSubmit { addNewSource() }
-                    SecureField("Password", text: $xtreamPass)
-                        .onSubmit { addNewSource() }
+            Picker("", selection: $sourceType) {
+                Text("M3U Playlist").tag(StreamType.m3u)
+                Text("Xtream Codes").tag(StreamType.xtream)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            
+            if sourceType == .m3u {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("M3U URL")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    TextField("", text: $m3uUrl)
                 }
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Server URL")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    TextField("", text: $xtreamUrl)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Username")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    TextField("", text: $xtreamUsername)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Password")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    SecureField("", text: $xtreamPassword)
+                }
+            }
+            
+            if let error = validationError {
+                Text(error)
+                    .foregroundColor(.red)
+                    .font(.caption)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             
             HStack {
-                Button("Cancel", role: .cancel) {
+                Button("Cancel") {
                     dismiss()
                 }
+                .keyboardShortcut(.cancelAction)
+                
                 Spacer()
-                Button("Add Source") {
-                    addNewSource()
+                
+                Button("Add") {
+                    if validateAndAdd() {
+                        dismiss()
+                    }
                 }
-                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
                 .disabled(name.isEmpty)
             }
-            .padding(.top)
         }
-        .padding()
+        .padding(12)
+        .frame(width: 400, height: sourceType == .m3u ? 200 : 310)
+        .onAppear {
+            isNameFieldFocused = true
+        }
     }
     
-    private func addNewSource() {
-        guard !name.isEmpty else { return }
+    private func validateAndAdd() -> Bool {
+        validationError = nil
         
-        let source = Source(
-            name: name,
-            type: type,
-            m3uUrl: type == .m3u ? m3uUrl : nil,
-            xtreamUrl: type == .xtream ? xtreamUrl : nil,
-            xtreamUser: type == .xtream ? xtreamUser : nil,
-            xtreamPass: type == .xtream ? xtreamPass : nil
-        )
-        appState.addSource(source)
-        dismiss()
+        // Validate name
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else {
+            validationError = "Name is required"
+            return false
+        }
+        
+        if sourceType == .m3u {
+            // Validate M3U URL
+            guard !m3uUrl.trimmingCharacters(in: .whitespaces).isEmpty else {
+                validationError = "M3U URL is required"
+                return false
+            }
+            
+            guard let url = URL(string: m3uUrl.trimmingCharacters(in: .whitespaces)),
+                  url.scheme != nil else {
+                validationError = "Invalid M3U URL format"
+                return false
+            }
+            
+            let source = Source(
+                name: name.trimmingCharacters(in: .whitespaces),
+                type: .m3u,
+                m3uUrl: m3uUrl.trimmingCharacters(in: .whitespaces)
+            )
+            appState.addSource(source)
+        } else {
+            // Validate Xtream fields
+            guard !xtreamUrl.trimmingCharacters(in: .whitespaces).isEmpty else {
+                validationError = "Server URL is required"
+                return false
+            }
+            
+            guard let url = URL(string: xtreamUrl.trimmingCharacters(in: .whitespaces)),
+                  url.scheme != nil else {
+                validationError = "Invalid Server URL format"
+                return false
+            }
+            
+            guard !xtreamUsername.trimmingCharacters(in: .whitespaces).isEmpty else {
+                validationError = "Username is required"
+                return false
+            }
+            
+            guard !xtreamPassword.isEmpty else {
+                validationError = "Password is required"
+                return false
+            }
+            
+            let source = Source(
+                name: name.trimmingCharacters(in: .whitespaces),
+                type: .xtream,
+                xtreamUrl: xtreamUrl.trimmingCharacters(in: .whitespaces),
+                xtreamUser: xtreamUsername.trimmingCharacters(in: .whitespaces),
+                xtreamPass: xtreamPassword
+            )
+            appState.addSource(source)
+        }
+        
+        return true
     }
 }
