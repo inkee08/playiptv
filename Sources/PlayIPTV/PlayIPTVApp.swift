@@ -1,0 +1,36 @@
+import SwiftUI
+
+@main
+struct PlayIPTVApp: App {
+    @State private var appState = AppState()
+
+    init() {
+        NSApplication.shared.setActivationPolicy(.regular)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView(appState: appState)
+                .onAppear { applyTheme(appState.theme) }
+                .onChange(of: appState.theme) { _, newTheme in
+                    applyTheme(newTheme)
+                }
+        }
+        .windowStyle(.hiddenTitleBar)
+        .commands {
+            SidebarCommands()
+        }
+    }
+
+    private func applyTheme(_ theme: AppState.AppTheme) {
+        switch theme {
+        case .light:
+            NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark:
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        case .system:
+            NSApp.appearance = nil
+        }
+    }
+}

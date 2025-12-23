@@ -1,0 +1,21 @@
+# Xcode
+.DS_Store
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.xcuserstate
+
+# SwiftPackageManager
+.swiftpm
+.build/
+Package.resolved
+
+# Build Artifacts
+build.log
+
+# Misc
+.env
+.idea/
+.vscode/
+
+# Project Specific (if any)
