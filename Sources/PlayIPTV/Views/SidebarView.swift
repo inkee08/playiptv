@@ -3,6 +3,8 @@ import SwiftUI
 struct SidebarView: View {
     @Bindable var appState: AppState
     
+    @Environment(\.openSettings) private var openSettings
+    
     var body: some View {
         List(selection: $appState.selectedCategory) {
             Button(action: {
@@ -22,10 +24,32 @@ struct SidebarView: View {
         }
         .navigationSplitViewColumnWidth(min: 200, ideal: 250)
         .toolbar {
-            Button(action: {
-                appState.logout()
-            }) {
-                Label("Sources", systemImage: "list.bullet.rectangle.portrait")
+            ToolbarItem(placement: .automatic) {
+                Menu {
+                    Picker("Source", selection: $appState.currentSource) {
+                        ForEach(appState.sources) { source in
+                            Text(source.name).tag(Optional(source))
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    
+                    Divider()
+                    
+                    Button("Manage Sources...") {
+                        appState.settingsTab = .sources
+                        Task { try? await openSettings() }
+                    }
+                } label: {
+                    Label("Sources", systemImage: "server.rack")
+                }
+            }
+        }
+
+        .onChange(of: appState.currentSource) { oldValue, newValue in
+            if let source = newValue, source.id != oldValue?.id {
+                Task {
+                    await appState.loadSource(source)
+                }
             }
         }
     }

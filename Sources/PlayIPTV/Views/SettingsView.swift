@@ -3,10 +3,54 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var appState: AppState
     
+    var body: some View {
+        TabView(selection: $appState.settingsTab) {
+            GeneralSettingsView(appState: appState)
+                .tabItem {
+                    Label("General", systemImage: "gear")
+                }
+                .tag(AppState.SettingsTab.general)
+            
+            SourceSettingsView(appState: appState)
+                .tabItem {
+                    Label("Sources", systemImage: "server.rack")
+                }
+                .tag(AppState.SettingsTab.sources)
+        }
+        .frame(width: 500, height: 400)
+    }
+}
+
+struct GeneralSettingsView: View {
+    @Bindable var appState: AppState
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            GroupBox(label: Label("Appearance", systemImage: "paintpalette")) {
+                VStack(alignment: .leading) {
+                    Picker("Theme", selection: $appState.theme) {
+                        ForEach(AppState.AppTheme.allCases) { theme in
+                            Text(theme.rawValue).tag(theme)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden() // Segmented picker doesn't need a label if context is clear
+                }
+                .padding()
+            }
+            
+            Spacer()
+        }
+        .padding()
+    }
+}
+
+struct SourceSettingsView: View {
+    @Bindable var appState: AppState
     @State private var showingAddSource = false
     
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
             List {
                 if appState.sources.isEmpty {
                     ContentUnavailableView("No Sources", systemImage: "tv.slash", description: Text("Add an IPTV source to get started."))
@@ -27,7 +71,7 @@ struct SettingsView: View {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundStyle(.green)
                             } else {
-                                Button("Select") {
+                                Button("Load") {
                                     Task {
                                         await appState.loadSource(source)
                                     }
@@ -47,28 +91,34 @@ struct SettingsView: View {
                     }
                 }
             }
-            .navigationTitle("Sources")
-            
-            Form {
-                Section("Appearance") {
-                    Picker("Theme", selection: $appState.theme) {
-                        ForEach(AppState.AppTheme.allCases) { theme in
-                            Text(theme.rawValue).tag(theme)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
-            }
-            .padding()
-            .toolbar {
+            // Footer Bar
+            HStack {
                 Button(action: { showingAddSource = true }) {
-                    Label("Add Source", systemImage: "plus")
+                    Image(systemName: "plus")
+                        .frame(width: 20, height: 20)
                 }
+                .buttonStyle(.borderless)
+                
+                Spacer()
+                
+                Text("\(appState.sources.count) sources")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                
+                Spacer()
+                
+                // Placeholder for symmetry or Delete button if we added selection state to the list
+                Color.clear.frame(width: 20, height: 20)
             }
-            .sheet(isPresented: $showingAddSource) {
-                AddSourceView(appState: appState)
-                    .frame(width: 400, height: 350)
-            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Material.bar)
+            
+            Divider()
+        }
+        .sheet(isPresented: $showingAddSource) {
+            AddSourceView(appState: appState)
+                .frame(width: 400, height: 350)
         }
     }
 }

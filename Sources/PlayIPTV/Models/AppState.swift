@@ -17,6 +17,13 @@ class AppState {
     }
     var theme: AppTheme = .system
     
+    // Settings Navigation
+    enum SettingsTab: Hashable {
+        case general
+        case sources
+    }
+    var settingsTab: SettingsTab = .general
+    
     var filteredChannels: [Channel] {
         let text = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let channelsToFilter: [Channel]

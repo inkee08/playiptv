@@ -6,6 +6,7 @@ struct ChannelGridView: View {
     // View Mode State
     @State private var isListView: Bool = false
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.openSettings) private var openSettings
     
     private var headerBackgroundColor: Color {
         // We use semantic colors which will match the FORCED color scheme environment
@@ -67,6 +68,14 @@ struct ChannelGridView: View {
                     Label("List", systemImage: "list.bullet").tag(true)
                 }
                 .pickerStyle(.inline)
+            }
+            
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: {
+                    Task { try? await openSettings() }
+                }) {
+                    Label("Settings", systemImage: "gear")
+                }
             }
         }
     }

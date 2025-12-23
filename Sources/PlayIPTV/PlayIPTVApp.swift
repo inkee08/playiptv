@@ -21,6 +21,10 @@ struct PlayIPTVApp: App {
         .commands {
             SidebarCommands()
         }
+        
+        Settings {
+            SettingsView(appState: appState)
+        }
     }
 
     private func applyTheme(_ theme: AppState.AppTheme) {
