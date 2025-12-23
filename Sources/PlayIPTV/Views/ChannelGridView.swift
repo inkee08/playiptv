@@ -4,9 +4,12 @@ struct ChannelGridView: View {
     var appState: AppState
     
     // View Mode State
-    @State private var isListView: Bool = false
+    // View Mode State - Now passed from ContentView
+    @Binding var isListView: Bool
+
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
     
     private var headerBackgroundColor: Color {
         // We use semantic colors which will match the FORCED color scheme environment
@@ -34,9 +37,13 @@ struct ChannelGridView: View {
                     }
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        appState.selectedChannel = channel
+                        appState.selectChannel(channel)
+                        if appState.playerMode == .detached {
+                            // openWindow(id: "playerWindow")
+                            DetachedWindowManager.shared.open(appState: appState)
+                        }
                     }
-                    .listRowBackground(appState.selectedChannel?.id == channel.id ? Color.accentColor.opacity(0.2) : nil)
+                    .listRowBackground((appState.selectedChannel?.id == channel.id || appState.detachedChannel?.id == channel.id) ? Color.accentColor.opacity(0.2) : nil)
                 }
             } else {
                 let columns = [GridItem(.adaptive(minimum: 160), spacing: 20)]
@@ -50,41 +57,18 @@ struct ChannelGridView: View {
                 }
             }
         }
-        .padding(.top, 0) // Explicitly handle safe area if needed, but let's try safeAreaInset first if pure padding fails.
-        // Actually, with hiddenTitleBar, the safe area might be ignored by ScrollView default.
-        // Adding a safeAreaInset or explicit padding is safer.
-        .safeAreaInset(edge: .top) {
-            Rectangle()
-                .fill(headerBackgroundColor)
-                .frame(height: 40)
-                .ignoresSafeArea()
-        }
         .navigationTitle(appState.selectedCategory?.name ?? "All Channels")
-        .searchable(text: Bindable(appState).searchText)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Picker("View Mode", selection: $isListView) {
-                    Label("Grid", systemImage: "square.grid.2x2").tag(false)
-                    Label("List", systemImage: "list.bullet").tag(true)
-                }
-                .pickerStyle(.inline)
-            }
-            
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: {
-                    Task { try? await openSettings() }
-                }) {
-                    Label("Settings", systemImage: "gear")
-                }
-            }
-        }
     }
     
     @ViewBuilder
     func channelButton(for channel: Channel) -> some View {
-        let isSelected = appState.selectedChannel?.id == channel.id
+        let isSelected = appState.selectedChannel?.id == channel.id || appState.detachedChannel?.id == channel.id
         Button(action: {
-            appState.selectedChannel = channel
+            appState.selectChannel(channel)
+            if appState.playerMode == .detached {
+                // openWindow(id: "playerWindow")
+                DetachedWindowManager.shared.open(appState: appState)
+            }
         }) {
             ChannelCard(channel: channel, isSelected: isSelected)
         }

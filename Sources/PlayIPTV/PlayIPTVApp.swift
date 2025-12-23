@@ -20,6 +20,23 @@ struct PlayIPTVApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             SidebarCommands()
+            
+            CommandMenu("Playback") {
+                Button("Play/Pause") {
+                    appState.playPauseSignal.toggle()
+                }
+                .keyboardShortcut(.space, modifiers: [])
+                
+                Button("Toggle Fullscreen") {
+                    print("DEBUG: 'F' / Menu Item Pressed. KeyWindow: \(String(describing: NSApp.keyWindow))")
+                    NSApp.keyWindow?.toggleFullScreen(nil)
+                }
+                .keyboardShortcut("f", modifiers: [])
+            }
+        }
+        
+        Settings {
+            SettingsView(appState: appState)
         }
         
         Settings {

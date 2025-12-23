@@ -23,6 +23,7 @@ struct SettingsView: View {
 
 struct GeneralSettingsView: View {
     @Bindable var appState: AppState
+    @Environment(\.openWindow) private var openWindow
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -34,7 +35,39 @@ struct GeneralSettingsView: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    .labelsHidden() // Segmented picker doesn't need a label if context is clear
+                    .labelsHidden()
+                }
+                .padding()
+            }
+            
+            GroupBox(label: Label("Playback", systemImage: "play.rectangle")) {
+                VStack(alignment: .leading) {
+                    Picker("Player Mode", selection: $appState.playerMode) {
+                        ForEach(AppState.PlayerMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .onChange(of: appState.playerMode) { oldMode, newMode in
+                        // Transfer channel when switching modes
+                        appState.switchPlayerMode(to: newMode)
+                    }
+                    
+                    Text(appState.playerMode == .attached ? "Video plays inside the main window." : "Video opens in a separate window.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                    
+                    Divider()
+                        .padding(.vertical, 8)
+                    
+                    Toggle("Show Channels in Fullscreen", isOn: $appState.showChannelsInFullscreen)
+                    
+                    Text("Display a channel browser overlay while in fullscreen for quick switching.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
                 }
                 .padding()
             }
@@ -52,9 +85,7 @@ struct SourceSettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             List {
-                if appState.sources.isEmpty {
-                    ContentUnavailableView("No Sources", systemImage: "tv.slash", description: Text("Add an IPTV source to get started."))
-                } else {
+                if !appState.sources.isEmpty {
                     ForEach(appState.sources) { source in
                         HStack {
                             VStack(alignment: .leading) {
@@ -89,6 +120,11 @@ struct SourceSettingsView: View {
                             appState.removeSource(appState.sources[index])
                         }
                     }
+                }
+            }
+            .overlay {
+                if appState.sources.isEmpty {
+                    ContentUnavailableView("No Sources", systemImage: "tv.slash", description: Text("Add an IPTV source to get started."))
                 }
             }
             // Footer Bar
@@ -138,10 +174,13 @@ struct AddSourceView: View {
     @State private var xtreamUser: String = ""
     @State private var xtreamPass: String = ""
     
+    @FocusState private var isNameFieldFocused: Bool
+    
     var body: some View {
         Form {
             Section("Details") {
                 TextField("Name", text: $name)
+                    .focused($isNameFieldFocused)
                 Picker("Type", selection: $type) {
                     Text("M3U Playlist").tag(StreamType.m3u)
                     Text("Xtream Codes").tag(StreamType.xtream)
@@ -152,10 +191,14 @@ struct AddSourceView: View {
             Section("Configuration") {
                 if type == .m3u {
                     TextField("M3U URL", text: $m3uUrl)
+                        .onSubmit { addNewSource() }
                 } else {
                     TextField("Server URL", text: $xtreamUrl)
+                        .onSubmit { addNewSource() }
                     TextField("Username", text: $xtreamUser)
+                        .onSubmit { addNewSource() }
                     SecureField("Password", text: $xtreamPass)
+                        .onSubmit { addNewSource() }
                 }
             }
             
@@ -165,16 +208,7 @@ struct AddSourceView: View {
                 }
                 Spacer()
                 Button("Add Source") {
-                    let source = Source(
-                        name: name,
-                        type: type,
-                        m3uUrl: type == .m3u ? m3uUrl : nil,
-                        xtreamUrl: type == .xtream ? xtreamUrl : nil,
-                        xtreamUser: type == .xtream ? xtreamUser : nil,
-                        xtreamPass: type == .xtream ? xtreamPass : nil
-                    )
-                    appState.addSource(source)
-                    dismiss()
+                    addNewSource()
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(name.isEmpty)
@@ -182,5 +216,20 @@ struct AddSourceView: View {
             .padding(.top)
         }
         .padding()
+    }
+    
+    private func addNewSource() {
+        guard !name.isEmpty else { return }
+        
+        let source = Source(
+            name: name,
+            type: type,
+            m3uUrl: type == .m3u ? m3uUrl : nil,
+            xtreamUrl: type == .xtream ? xtreamUrl : nil,
+            xtreamUser: type == .xtream ? xtreamUser : nil,
+            xtreamPass: type == .xtream ? xtreamPass : nil
+        )
+        appState.addSource(source)
+        dismiss()
     }
 }

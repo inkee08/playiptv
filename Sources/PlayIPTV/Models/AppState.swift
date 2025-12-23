@@ -5,7 +5,13 @@ class AppState {
     var channels: [Channel] = []
     var categories: [Category] = []
     var selectedCategory: Category?
-    var selectedChannel: Channel?
+    var selectedChannel: Channel? {
+        didSet {
+            Task { @MainActor in
+                checkAndStopPlayer()
+            }
+        }
+    }
     var searchText: String = ""
     
     // Theme support
@@ -23,6 +29,45 @@ class AppState {
         case sources
     }
     var settingsTab: SettingsTab = .general
+    
+    // Player State
+    enum PlayerMode: String, CaseIterable, Codable, Identifiable {
+        case attached = "Attached"
+        case detached = "Detached"
+        var id: String { rawValue }
+    }
+    var playerMode: PlayerMode = .detached
+    
+    var detachedChannel: Channel? {
+        didSet {
+            Task { @MainActor in
+                checkAndStopPlayer()
+            }
+        }
+    }
+    
+    // Flag to prevent stopping player during mode switches
+    private var isSwitchingModes: Bool = false
+    
+    // Playback Signals
+    var playPauseSignal: Bool = false
+    // toggleFullscreenSignal removed - utilizing NSApp.keyWindow direct toggle
+    
+    // Fullscreen Settings
+    var showChannelsInFullscreen: Bool = false
+    
+    // Runtime state for channel browser (can be toggled independently of setting)
+    var isChannelBrowserVisible: Bool = false
+    
+    func selectChannel(_ channel: Channel) {
+        if playerMode == .attached {
+            selectedChannel = channel
+            detachedChannel = nil
+        } else {
+            detachedChannel = channel
+            selectedChannel = nil
+        }
+    }
     
     var filteredChannels: [Channel] {
         let text = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -162,9 +207,40 @@ class AppState {
         }
     }
     
+    // MARK: - Player Management
+    @MainActor
+    private func checkAndStopPlayer() {
+        // Don't stop during mode switches
+        guard !isSwitchingModes else {
+            print("DEBUG: AppState - Skipping stop check (mode switching)")
+            return
+        }
+        
+        // Only stop the player when both channels are nil (user closed all streams)
+        if selectedChannel == nil && detachedChannel == nil {
+            print("DEBUG: AppState - Both channels nil, stopping player")
+            PlayerManager.shared.stop()
+        }
+    }
+    
     func logout() {
         currentSource = nil
         channels = []
         categories = []
+    }
+    
+    @MainActor
+    func switchPlayerMode(to newMode: PlayerMode) {
+        isSwitchingModes = true
+        defer { isSwitchingModes = false }
+        
+        if newMode == .attached && detachedChannel != nil {
+            selectedChannel = detachedChannel
+            detachedChannel = nil
+        } else if newMode == .detached && selectedChannel != nil {
+            detachedChannel = selectedChannel
+            selectedChannel = nil
+            DetachedWindowManager.shared.open(appState: self)
+        }
     }
 }

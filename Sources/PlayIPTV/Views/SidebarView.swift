@@ -23,27 +23,7 @@ struct SidebarView: View {
             }
         }
         .navigationSplitViewColumnWidth(min: 200, ideal: 250)
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Menu {
-                    Picker("Source", selection: $appState.currentSource) {
-                        ForEach(appState.sources) { source in
-                            Text(source.name).tag(Optional(source))
-                        }
-                    }
-                    .pickerStyle(.inline)
-                    
-                    Divider()
-                    
-                    Button("Manage Sources...") {
-                        appState.settingsTab = .sources
-                        Task { try? await openSettings() }
-                    }
-                } label: {
-                    Label("Sources", systemImage: "server.rack")
-                }
-            }
-        }
+        .navigationSplitViewColumnWidth(min: 200, ideal: 250)
 
         .onChange(of: appState.currentSource) { oldValue, newValue in
             if let source = newValue, source.id != oldValue?.id {
