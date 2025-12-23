@@ -58,16 +58,6 @@ struct GeneralSettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .padding(.top, 4)
-                    
-                    Divider()
-                        .padding(.vertical, 8)
-                    
-                    Toggle("Show Channels in Fullscreen", isOn: $appState.showChannelsInFullscreen)
-                    
-                    Text("Display a channel browser overlay while in fullscreen for quick switching.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 4)
                 }
                 .padding()
             }

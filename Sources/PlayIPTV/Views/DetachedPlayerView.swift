@@ -17,46 +17,47 @@ struct DetachedPlayerView: View {
             if let channel = appState.detachedChannel {
                 if isFullscreen {
                     // Fullscreen layout with side-by-side channel browser
-                    HStack(spacing: 0) {
-                        // Channel Browser (Leading)
-                        if appState.isChannelBrowserVisible {
-                            FullscreenChannelBrowserView(appState: appState)
-                                .frame(width: 320)
-                                .transition(.move(edge: .leading))
-                        }
-                        
-                        // Video Player
-                        ZStack(alignment: .topLeading) {
+                    ZStack(alignment: .topLeading) {
+                        // Main content
+                        HStack(spacing: 0) {
+                            // Channel Browser (Leading)
+                            if appState.isChannelBrowserVisible {
+                                FullscreenChannelBrowserView(appState: appState)
+                                    .frame(width: 320)
+                                    .transition(.move(edge: .leading))
+                            }
+                            
+                            // Video Player
                             PlayerView(url: channel.streamUrl, appState: appState, isFullscreen: $isFullscreen)
                                 .focused($isPlayerFocused)
                                 .onAppear {
                                     isPlayerFocused = true
-                                    // Initialize browser visibility from setting
-                                    appState.isChannelBrowserVisible = appState.showChannelsInFullscreen
+                                    // Initialize browser visibility - start hidden
+                                    appState.isChannelBrowserVisible = false
                                 }
-                            
-                            // Toggle button for channel browser
-                            VStack {
-                                HStack {
-                                    Button(action: {
-                                        withAnimation {
-                                            appState.isChannelBrowserVisible.toggle()
-                                        }
-                                    }) {
-                                        Image(systemName: appState.isChannelBrowserVisible ? "sidebar.left.fill" : "sidebar.left")
-                                            .font(.system(size: 20))
-                                            .foregroundStyle(.white.opacity(0.8))
-                                            .background(Circle().fill(Color.black.opacity(0.4)).frame(width: 36, height: 36))
-                                    }
-                                    .buttonStyle(.plain)
-                                    .help(appState.isChannelBrowserVisible ? "Hide Channels" : "Show Channels")
-                                    .padding(20)
-                                    
-                                    Spacer()
-                                }
-                                Spacer()
-                            }
                         }
+                        
+                        // Toggle button - on top of everything
+                        Button(action: {
+                            withAnimation {
+                                appState.isChannelBrowserVisible.toggle()
+                            }
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .fill(.black.opacity(0.8))
+                                    .frame(width: 44, height: 44)
+                                
+                                Text(appState.isChannelBrowserVisible ? "◀" : "▶")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                            .shadow(color: .black.opacity(0.5), radius: 8, x: 0, y: 2)
+                        }
+                        .buttonStyle(.plain)
+                        .help(appState.isChannelBrowserVisible ? "Hide Channels" : "Show Channels")
+                        .padding(.leading, appState.isChannelBrowserVisible ? 340 : 20)
+                        .padding(.top, 20)
                     }
                 } else {
                     // Windowed mode

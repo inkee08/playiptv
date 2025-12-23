@@ -53,10 +53,7 @@ class AppState {
     var playPauseSignal: Bool = false
     // toggleFullscreenSignal removed - utilizing NSApp.keyWindow direct toggle
     
-    // Fullscreen Settings
-    var showChannelsInFullscreen: Bool = false
-    
-    // Runtime state for channel browser (can be toggled independently of setting)
+    // Runtime state for channel browser (can be toggled independently)
     var isChannelBrowserVisible: Bool = false
     
     func selectChannel(_ channel: Channel) {

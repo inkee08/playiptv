@@ -49,11 +49,10 @@ class DetachedWindowManager {
         window.makeKeyAndOrderFront(nil)
         
         // Cleanup when closed
-        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
-            nonisolated(unsafe) let appStateRef = appState
+        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { @Sendable [weak self, appState] _ in
             Task { @MainActor [weak self] in
                 // Clear the detached channel so AppState stops the player
-                appStateRef.detachedChannel = nil
+                appState.detachedChannel = nil
                 self?.windowController = nil
             }
         }
