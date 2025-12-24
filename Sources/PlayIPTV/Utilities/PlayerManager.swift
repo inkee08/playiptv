@@ -12,6 +12,7 @@ class PlayerManager: NSObject, ObservableObject {
     private var currentUrl: URL?
     private var currentStreamId: String?
     private var positionSaveTimer: Timer?
+    private var debounceTask: Task<Void, Never>?
     
     override init() {
         super.init()
@@ -54,6 +55,9 @@ class PlayerManager: NSObject, ObservableObject {
         print("DEBUG: VLC → Stopping playback")
         saveCurrentPosition()
         stopPositionTracking()
+        
+        debounceTask?.cancel()
+        debounceTask = nil
         
         player.stop()
         player.media = nil
@@ -150,11 +154,25 @@ extension PlayerManager: VLCMediaPlayerDelegate {
             print("DEBUG: VLC State Changed: \(player.state.rawValue)")
             switch player.state {
             case .opening, .buffering:
-                isLoading = true
-                print("DEBUG: Loading started")
+                // Cancel pending stop
+                debounceTask?.cancel()
+                debounceTask = nil
+                
+                if !isLoading {
+                    isLoading = true
+                    print("DEBUG: Loading started")
+                }
+                
             default:
-                isLoading = false
-                print("DEBUG: Loading ended (State: \(player.state.rawValue))")
+                // Debounce stop (wait 0.5s) to prevent flickering on retry loops
+                debounceTask?.cancel() 
+                debounceTask = Task {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    if !Task.isCancelled {
+                        isLoading = false
+                        print("DEBUG: Loading ended (State: \(player.state.rawValue))")
+                    }
+                }
             }
         }
     }
