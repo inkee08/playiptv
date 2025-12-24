@@ -12,48 +12,65 @@ if [ ! -f "AppIcon.icns" ] && [ ! -f "$ICON_SOURCE" ]; then
     exit 1
 fi
 
-echo "🚀 Building $APP_NAME..."
-swift build -c release
+# Build Loop
+build_for_arch() {
+    ARCH=$1
+    echo "========================================"
+    echo "🚀 Starting build for architecture: $ARCH"
+    echo "========================================"
 
-if [ $? -ne 0 ]; then
-    echo "Build failed."
-    exit 1
-fi
+    # output specific to arch
+    BUILD_PATH=".build/${ARCH}-apple-macosx/release"
+    
+    echo "🔨 Compiling..."
+    swift build -c release --arch "$ARCH"
 
-echo "📦 Creating $APP_NAME.app bundle..."
+    if [ $? -ne 0 ]; then
+        echo "❌ Build failed for $ARCH."
+        return 1
+    fi
 
-# Create structure
-APP_BUNDLE="$OUTPUT_DIR/$APP_NAME.app"
-CONTENTS="$APP_BUNDLE/Contents"
-MACOS="$CONTENTS/MacOS"
-RESOURCES="$CONTENTS/Resources"
-FRAMEWORKS="$CONTENTS/Frameworks"
+    echo "📦 Creating $APP_NAME.app bundle for $ARCH..."
 
-mkdir -p "$MACOS"
-mkdir -p "$RESOURCES"
-mkdir -p "$FRAMEWORKS"
+    # Create structure (Standard name inside the zip)
+    APP_BUNDLE="$RELEASE_DIR/${APP_NAME}.app"
+    CONTENTS="$APP_BUNDLE/Contents"
+    MACOS="$CONTENTS/MacOS"
+    RESOURCES="$CONTENTS/Resources"
+    FRAMEWORKS="$CONTENTS/Frameworks"
 
-# Copy binary
-cp "$BUILD_DIR/$APP_NAME" "$MACOS/"
+    rm -rf "$APP_BUNDLE"
+    mkdir -p "$MACOS"
+    mkdir -p "$RESOURCES"
+    mkdir -p "$FRAMEWORKS"
 
-# Copy Frameworks (VLCKit)
-# Find VLCKit.framework in build dir
-VLCKIT_PATH=$(find .build -name "VLCKit.framework" -type d | grep "release" | head -n 1)
-if [ -z "$VLCKIT_PATH" ]; then
-    echo "⚠️ Warning: VLCKit.framework not found in release build. Trying to find anywhere..."
-    VLCKIT_PATH=$(find .build -name "VLCKit.framework" -type d | head -n 1)
-fi
+    # Copy binary
+    if [ -f "$BUILD_PATH/$APP_NAME" ]; then
+        cp "$BUILD_PATH/$APP_NAME" "$MACOS/$APP_NAME" # Ensure binary name inside bundle is standard
+    else
+        echo "❌ Error: Binary not found at $BUILD_PATH/$APP_NAME"
+        return 1
+    fi
 
-if [ -n "$VLCKIT_PATH" ]; then
-    echo "📦 Bundling VLCKit from $VLCKIT_PATH..."
-    cp -R "$VLCKIT_PATH" "$FRAMEWORKS/"
-else
-    echo "❌ Error: Could not find VLCKit.framework"
-    exit 1
-fi
+    # Copy Frameworks (VLCKit)
+    # Find VLCKit.framework in specific arch build dir
+    VLCKIT_PATH=$(find .build/${ARCH}-apple-macosx -name "VLCKit.framework" -type d | grep "release" | head -n 1)
+    
+    if [ -z "$VLCKIT_PATH" ]; then
+         echo "⚠️ Warning: VLCKit.framework not found in specific path. Searching broader..."
+         VLCKIT_PATH=$(find .build -name "VLCKit.framework" -type d | head -n 1)
+    fi
 
-# Create Info.plist
-cat > "$CONTENTS/Info.plist" <<EOF
+    if [ -n "$VLCKIT_PATH" ]; then
+        echo "📦 Bundling VLCKit from $VLCKIT_PATH..."
+        cp -R "$VLCKIT_PATH" "$FRAMEWORKS/"
+    else
+        echo "❌ Error: Could not find VLCKit.framework"
+        return 1
+    fi
+
+    # Create Info.plist
+    cat > "$CONTENTS/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -76,19 +93,34 @@ cat > "$CONTENTS/Info.plist" <<EOF
 </plist>
 EOF
 
-echo "🎨 Setting up AppIcon..."
+    echo "🎨 Setting up AppIcon..."
+    # Pre-generated icon check
+    if [ -f "AppIcon.icns" ]; then
+         cp "AppIcon.icns" "$RESOURCES/AppIcon.icns"
+    fi
 
-if [ -f "AppIcon.icns" ]; then
-    echo "✅ Found existing AppIcon.icns, using it."
-    cp "AppIcon.icns" "$RESOURCES/AppIcon.icns"
-else
-    echo "Generating from $ICON_SOURCE..."
+    echo "🔐 Ad-hoc code signing..."
+    codesign --force --deep --sign - "$APP_BUNDLE"
+
+    # Zip
+    ZIP_NAME="${APP_NAME}_${ARCH}.zip"
+    echo "📦 Zipping into $ZIP_NAME..."
+    rm -f "$RELEASE_DIR/$ZIP_NAME"
+    (cd "$RELEASE_DIR" && zip -r -q "$ZIP_NAME" "$APP_NAME.app")
     
-    # Create iconset directory
+    echo "✅ Finished $ARCH"
+}
+
+# Updates to Main Execution
+# 1. Prepare output dir
+RELEASE_DIR="Releases"
+mkdir -p "$RELEASE_DIR"
+
+# 2. Prepare Icon globally if needed (to avoid re-generating per arch)
+if [ ! -f "AppIcon.icns" ] && [ -f "$ICON_SOURCE" ]; then
+    echo "🎨 Generating AppIcon.icns from source..."
     ICONSET="PlayIPTV.iconset"
     mkdir -p "$ICONSET"
-
-    # Generate icons of various sizes using sips
     sips -z 16 16     "$ICON_SOURCE" --out "$ICONSET/icon_16x16.png" &>/dev/null
     sips -z 32 32     "$ICON_SOURCE" --out "$ICONSET/icon_16x16@2x.png" &>/dev/null
     sips -z 32 32     "$ICON_SOURCE" --out "$ICONSET/icon_32x32.png" &>/dev/null
@@ -99,38 +131,20 @@ else
     sips -z 512 512   "$ICON_SOURCE" --out "$ICONSET/icon_256x256@2x.png" &>/dev/null
     sips -z 512 512   "$ICON_SOURCE" --out "$ICONSET/icon_512x512.png" &>/dev/null
     sips -z 1024 1024 "$ICON_SOURCE" --out "$ICONSET/icon_512x512@2x.png" &>/dev/null
-
-    # Convert iconset to icns
-    iconutil -c icns "$ICONSET" -o "$RESOURCES/AppIcon.icns"
-
-    # Cleanup
+    iconutil -c icns "$ICONSET" -o "AppIcon.icns"
     rm -rf "$ICONSET"
 fi
 
-echo "🔐 Ad-hoc code signing..."
-codesign --force --deep --sign - "$APP_BUNDLE"
+# 3. Run Builds
+# 3. Run Builds
+build_for_arch "arm64"
 
-# Prepare Release Artifacts
-RELEASE_DIR="Releases"
-mkdir -p "$RELEASE_DIR"
-
-echo "📦 Packaging for GitHub Release..."
-# Clean old artifacts in release dir
-rm -rf "$RELEASE_DIR/$APP_NAME.app"
-rm -f "$RELEASE_DIR/$APP_NAME.zip"
-
-# Move App Bundle to Release Folder
-mv "$APP_BUNDLE" "$RELEASE_DIR/"
-
-# Zip the bundle (Standard GitHub Release format)
-echo "Compression..."
-(cd "$RELEASE_DIR" && zip -r -q "$APP_NAME.zip" "$APP_NAME.app")
-
-echo "✅ Build Complete!"
-echo "📂 Artifacts Location: $(pwd)/$RELEASE_DIR"
-echo "   - App Bundle: $RELEASE_DIR/$APP_NAME.app"
-echo "   - Distribution Zip: $RELEASE_DIR/$APP_NAME.zip"
+echo ""
+echo "🎉 Build complete!"
+echo "📂 Artifacts in $RELEASE_DIR/"
+echo "   - App Bundle: $RELEASE_DIR/${APP_NAME}_arm64.app"
+echo "   - Distribution Zip: $RELEASE_DIR/${APP_NAME}_arm64.zip"
 echo ""
 echo "🚀 To Release on GitHub:"
 echo "1. Go to your repo -> Releases -> Draft a new release"
-echo "2. Upload '$RELEASE_DIR/$APP_NAME.zip'"
+echo "2. Upload '$RELEASE_DIR/${APP_NAME}_arm64.zip'"

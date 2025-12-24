@@ -19,10 +19,10 @@ build.log
 .vscode/
 
 # Build & Release Artifacts
-PlayIPTV
-PlayIPTV.app
-Releases/
-PlayIPTV.iconset/
+/PlayIPTV
+/PlayIPTV.app
+/Releases/
+/PlayIPTV.iconset/
 
 # Project Specific (if any)
 debug-config.json
