@@ -4,6 +4,9 @@ struct ChannelGridView: View {
     @Bindable var appState: AppState
     @Binding var isListView: Bool
     @State private var showEpisodePicker: Bool = false
+    @State private var scrollPosition: UUID?
+    @State private var scrollToId: UUID?
+    @State private var shouldScrollToSelected = false
 
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.openSettings) private var openSettings
@@ -52,50 +55,70 @@ struct ChannelGridView: View {
     }
     
     private var listView: some View {
-        List {
-            // Show clear button for Recent category
-            if appState.selectedCategory?.id == "recent" && !appState.filteredChannels.isEmpty {
-                Button(action: {
-                    RecentVODManager.shared.clearAll()
-                }) {
-                    HStack {
-                        Image(systemName: "trash")
-                            .foregroundStyle(.red)
-                        Text("Clear Recent")
-                            .foregroundStyle(.red)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-            
-            ForEach(appState.filteredChannels) { channel in
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Image(systemName: "tv")
-                            .foregroundStyle(.secondary)
-                        Text(channel.name)
-                        Spacer()
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    // Show clear button for Recent category
+                    if appState.selectedCategory?.id == "recent" && !appState.filteredChannels.isEmpty {
+                        Button(action: {
+                            RecentVODManager.shared.clearAll()
+                        }) {
+                            HStack {
+                                Image(systemName: "trash")
+                                    .foregroundStyle(.red)
+                                Text("Clear Recent")
+                                    .foregroundStyle(.red)
+                                Spacer()
+                            }
+                            .padding()
+                        }
+                        .buttonStyle(.plain)
+                        Divider()
                     }
                     
-                    // EPG Program info (Live TV only)
-                    if !channel.isSeries {
-                        let isLiveTV = channel.categoryId.lowercased().contains("live") || 
-                                       channel.groupTitle?.lowercased().contains("live") == true
-                        
-                        if isLiveTV, let program = EPGManager.shared.getCurrentProgram(for: channel.name, sourceId: channel.sourceId) {
-                            Text(program.title)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .padding(.leading, 24) // Align with channel name
+                    ForEach(appState.filteredChannels) { channel in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: "tv")
+                                    .foregroundStyle(.secondary)
+                                Text(channel.name)
+                                Spacer()
+                            }
+                            
+                            // EPG Program info (Live TV only)
+                            if !channel.isSeries {
+                                let isLiveTV = channel.categoryId.lowercased().contains("live") || 
+                                               channel.groupTitle?.lowercased().contains("live") == true
+                                
+                                if isLiveTV, let program = EPGManager.shared.getCurrentProgram(for: channel.name, sourceId: channel.sourceId) {
+                                    Text(program.title)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .padding(.leading, 24)
+                                }
+                            }
                         }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
+                        .background(appState.selectedChannel?.id == channel.id ? Color.accentColor.opacity(0.2) : Color.clear)
+                        .onTapGesture {
+                            handleChannelTap(channel)
+                        }
+                        .id(channel.id)
+                        
+                        Divider()
                     }
                 }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    handleChannelTap(channel)
+            }
+            .onChange(of: appState.channelSearchText) { oldValue, newValue in
+                // When search is cleared, scroll to selected channel instantly
+                if !oldValue.isEmpty && newValue.isEmpty {
+                    if let selectedId = appState.selectedChannel?.id {
+                        proxy.scrollTo(selectedId, anchor: .center)
+                    }
                 }
-                .listRowBackground(appState.selectedChannel?.id == channel.id ? Color.accentColor.opacity(0.2) : nil)
             }
         }
     }
@@ -103,30 +126,41 @@ struct ChannelGridView: View {
     private var gridView: some View {
         let columns = [GridItem(.adaptive(minimum: 160), spacing: 20)]
         
-        return ScrollView {
-            VStack(spacing: 0) {
-                // Show clear button for Recent category
-                if appState.selectedCategory?.id == "recent" && !appState.filteredChannels.isEmpty {
-                    HStack {
-                        Spacer()
-                        Button(action: {
-                            RecentVODManager.shared.clearAll()
-                        }) {
-                            Label("Clear Recent", systemImage: "trash")
-                                .foregroundStyle(.red)
+        return ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Show clear button for Recent category
+                    if appState.selectedCategory?.id == "recent" && !appState.filteredChannels.isEmpty {
+                        HStack {
+                            Spacer()
+                            Button(action: {
+                                RecentVODManager.shared.clearAll()
+                            }) {
+                                Label("Clear Recent", systemImage: "trash")
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(.bordered)
+                            .padding()
                         }
-                        .buttonStyle(.bordered)
-                        .padding()
+                        .background(headerBackgroundColor)
                     }
-                    .background(headerBackgroundColor)
+                    
+                    LazyVGrid(columns: columns, spacing: 20) {
+                        ForEach(appState.filteredChannels) { channel in
+                            channelButton(for: channel)
+                                .id(channel.id)
+                        }
+                    }
+                    .padding()
                 }
-                
-                LazyVGrid(columns: columns, spacing: 20) {
-                    ForEach(appState.filteredChannels) { channel in
-                        channelButton(for: channel)
+            }
+            .onChange(of: appState.channelSearchText) { oldValue, newValue in
+                // When search is cleared, scroll to selected channel instantly
+                if !oldValue.isEmpty && newValue.isEmpty {
+                    if let selectedId = appState.selectedChannel?.id {
+                        proxy.scrollTo(selectedId, anchor: .center)
                     }
                 }
-                .padding()
             }
         }
     }
