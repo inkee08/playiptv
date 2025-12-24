@@ -9,12 +9,25 @@ enum XtreamError: Error {
 
 struct XtreamClient {
     let baseURL: URL
+    let serverURL: URL // Base server URL without player_api.php
     let username: String
     let password: String
     
     init?(url: String, username: String, password: String) {
         guard let validURL = URL(string: url) else { return nil }
         self.baseURL = validURL
+        
+        // Extract server URL (remove player_api.php if present)
+        var serverURLString = url
+        if serverURLString.hasSuffix("/player_api.php") {
+            serverURLString = String(serverURLString.dropLast("/player_api.php".count))
+        } else if serverURLString.hasSuffix("player_api.php") {
+            serverURLString = String(serverURLString.dropLast("player_api.php".count))
+        }
+        
+        guard let validServerURL = URL(string: serverURLString) else { return nil }
+        self.serverURL = validServerURL
+        
         self.username = username
         self.password = password
     }
@@ -76,15 +89,13 @@ struct XtreamClient {
         let streams = try decoder.decode([XtreamStreamDTO].self, from: data)
         
         return streams.map { dto in
-            // Xtream live stream URL format: http://domain:port/username/password/stream_id.ts (usually)
-            // or just /live/username/password/stream_id.ts
-            // We need to construct the stream URL manually usually.
+            // Xtream live stream URL format: http://domain:port/live/username/password/stream_id.ts
+            // Use serverURL (without player_api.php) as base
+            var components = URLComponents(url: serverURL, resolvingAgainstBaseURL: true)
+            components?.path = "/live/\(username)/\(password)/\(dto.stream_id).ts"
             
-            // Assuming standard structure: baseURL/live/username/password/stream_id.ts
-            let streamUrl = baseURL.appendingPathComponent("live")
-                .appendingPathComponent(username)
-                .appendingPathComponent(password)
-                .appendingPathComponent("\(dto.stream_id).ts")
+            let streamUrl = components?.url ?? serverURL
+            print("DEBUG: Constructed Live URL: \(streamUrl.absoluteString)")
             
             return Channel(
                 streamId: String(dto.stream_id),
@@ -92,7 +103,8 @@ struct XtreamClient {
                 logoUrl: dto.stream_icon != nil ? URL(string: dto.stream_icon!) : nil,
                 streamUrl: streamUrl,
                 categoryId: dto.category_id ?? "0",
-                groupTitle: nil
+                groupTitle: nil,
+                isSeries: false
             )
         }
     }
@@ -126,12 +138,14 @@ struct XtreamClient {
         let vods = try decoder.decode([XtreamVODDTO].self, from: data)
         
         return vods.map { dto in
-            // VOD URL: /movie/username/password/stream_id.mp4 (or mkv etc)
+            // VOD URL: http://domain:port/movie/username/password/stream_id.ext
             let ext = dto.container_extension ?? "mp4"
-            let streamUrl = baseURL.appendingPathComponent("movie")
-                .appendingPathComponent(username)
-                .appendingPathComponent(password)
-                .appendingPathComponent("\(dto.stream_id).\(ext)")
+            
+            var components = URLComponents(url: serverURL, resolvingAgainstBaseURL: true)
+            components?.path = "/movie/\(username)/\(password)/\(dto.stream_id).\(ext)"
+            
+            let streamUrl = components?.url ?? serverURL
+            print("DEBUG: Constructed VOD URL: \(streamUrl.absoluteString)")
             
             return Channel(
                 streamId: String(dto.stream_id),
@@ -139,7 +153,8 @@ struct XtreamClient {
                 logoUrl: dto.stream_icon != nil ? URL(string: dto.stream_icon!) : nil,
                 streamUrl: streamUrl,
                 categoryId: dto.category_id ?? "0",
-                groupTitle: nil
+                groupTitle: nil,
+                isSeries: false
             )
         }
     }
@@ -183,8 +198,61 @@ struct XtreamClient {
                 logoUrl: dto.cover != nil ? URL(string: dto.cover!) : nil,
                 streamUrl: seriesUrl,
                 categoryId: dto.category_id ?? "0",
-                groupTitle: nil
+                groupTitle: nil,
+                isSeries: true
             )
         }
+    }
+    
+    // Fetch episodes for a specific series
+    func fetchSeriesInfo(seriesId: String) async throws -> SeriesInfo {
+        var components = URLComponents(url: baseURL.appendingPathComponent("player_api.php"), resolvingAgainstBaseURL: true)
+        components?.queryItems = [
+            URLQueryItem(name: "username", value: username),
+            URLQueryItem(name: "password", value: password),
+            URLQueryItem(name: "action", value: "get_series_info"),
+            URLQueryItem(name: "series_id", value: seriesId)
+        ]
+        
+        guard let url = components?.url else { throw XtreamError.invalidURL }
+        
+        struct SeriesInfoDTO: Decodable {
+            let episodes: [String: [EpisodeDTO]]
+        }
+        
+        struct EpisodeDTO: Decodable {
+            let id: String
+            let episode_num: Int
+            let season: Int
+            let title: String?
+            let container_extension: String
+        }
+        
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let decoder = JSONDecoder()
+        let info = try decoder.decode(SeriesInfoDTO.self, from: data)
+        
+        var allEpisodes: [Episode] = []
+        for (_, seasonEpisodes) in info.episodes {
+            for ep in seasonEpisodes {
+                // Episode URL: http://domain:port/series/username/password/episode_id.ext
+                var components = URLComponents(url: serverURL, resolvingAgainstBaseURL: true)
+                components?.path = "/series/\(username)/\(password)/\(ep.id).\(ep.container_extension)"
+                
+                let episodeUrl = components?.url ?? serverURL
+                print("DEBUG: Constructed Episode URL: \(episodeUrl.absoluteString)")
+                
+                allEpisodes.append(Episode(
+                    id: ep.id,
+                    episodeNum: ep.episode_num,
+                    seasonNum: ep.season,
+                    title: ep.title,
+                    streamUrl: episodeUrl,
+                    containerExtension: ep.container_extension
+                ))
+            }
+        }
+        
+        return SeriesInfo(seriesId: seriesId, episodes: allEpisodes.sorted { ($0.seasonNum, $0.episodeNum) < ($1.seasonNum, $1.episodeNum) })
     }
 }

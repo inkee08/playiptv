@@ -11,9 +11,15 @@ let package = Package(
     products: [
         .executable(name: "PlayIPTV", targets: ["PlayIPTV"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/tylerjonesio/vlckit-spm", from: "3.6.0")
+    ],
     targets: [
         .executableTarget(
             name: "PlayIPTV",
+            dependencies: [
+                .product(name: "VLCKitSPM", package: "vlckit-spm")
+            ],
             path: "Sources/PlayIPTV"
         )
     ]

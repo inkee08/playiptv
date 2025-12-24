@@ -51,7 +51,7 @@ struct FullscreenChannelBrowserView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(filteredChannels) { channel in
-                        let isSelected = appState.selectedChannel?.id == channel.id || appState.detachedChannel?.id == channel.id
+                        let isSelected = appState.selectedChannel?.id == channel.id
                         
                         Button(action: {
                             appState.selectChannel(channel)

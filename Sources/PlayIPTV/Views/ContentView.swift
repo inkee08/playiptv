@@ -33,36 +33,44 @@ struct ContentView: View {
         // Hide toolbar in fullscreen
         .toolbar(isFullscreen ? .hidden : .visible, for: .windowToolbar)
         .handleWindowFullscreen(isFullscreen: $isFullscreen)
+        .sheet(isPresented: $appState.showVODDialog) {
+            if let channel = appState.vodDialogChannel {
+                VODPlaybackDialog(
+                    channel: channel,
+                    savedPosition: appState.vodDialogSavedPosition,
+                    onPlay: {
+                        appState.playVODFromStart()
+                    },
+                    onResume: appState.vodDialogSavedPosition != nil ? {
+                        appState.resumeVOD()
+                    } : nil,
+                    onCancel: {
+                        appState.cancelVOD()
+                    }
+                )
+            }
+        }
     }
     
     @ViewBuilder
     private var mainContent: some View {
-        if appState.playerMode == .attached {
-            if isFullscreen, let channel = appState.selectedChannel {
-                fullscreenPlayer(channel: channel)
-                    .id("attached-fullscreen")
-            } else {
-                attachedSplitView
-                    .id("attached-split")
-            }
+        if isFullscreen, let channel = appState.selectedChannel {
+            fullscreenPlayer(channel: channel)
         } else {
-            detachedSplitView
-                .id("detached-split")
+            attachedSplitView
         }
+    }
+    
+    // Stable player view that persists across mode changes
+    private var playerView: some View {
+        PlayerView()
+            .id("stable-player-view") // Prevent recreation
+            .focused($isPlayerFocused)
     }
     
     private var attachedSplitView: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(appState: appState)
-                .toolbar(removing: .sidebarToggle)
-                .toolbar {
-                    ToolbarItem(placement: .automatic) {
-                        Button(action: toggleSidebar) {
-                            Image(systemName: "sidebar.left")
-                        }
-                        .help("Toggle Sidebar")
-                    }
-                }
         } content: {
             ChannelGridView(appState: appState, isListView: $isListView)
         } detail: {
@@ -107,8 +115,7 @@ struct ContentView: View {
                 }
                 
                 // Video Player
-                PlayerView(url: channel.streamUrl, appState: appState, isFullscreen: $isFullscreen)
-                    .focused($isPlayerFocused)
+                playerView
                     .onAppear {
                         isPlayerFocused = true
                         // Initialize browser visibility - start hidden
@@ -143,8 +150,7 @@ struct ContentView: View {
     
     private func playerDetailView(channel: Channel) -> some View {
         ZStack(alignment: .topTrailing) {
-            PlayerView(url: channel.streamUrl, appState: appState, isFullscreen: $isFullscreen)
-                .focused($isPlayerFocused)
+            playerView
                 .onAppear {
                     isPlayerFocused = true
                 }
@@ -182,15 +188,7 @@ struct ContentView: View {
     }
     
     private func toggleSidebar() {
-        if appState.playerMode == .attached {
-            withAnimation {
-                columnVisibility = (columnVisibility == .detailOnly) ? .all : .detailOnly
-            }
-        } else {
-            withAnimation {
-                detachedColumnVisibility = (detachedColumnVisibility == .detailOnly) ? .all : .detailOnly
-            }
-        }
+        NSApp.keyWindow?.firstResponder?.tryToPerform(#selector(NSSplitViewController.toggleSidebar(_:)), with: nil)
     }
 }
 
@@ -202,8 +200,6 @@ struct AppToolbar: ToolbarContent {
     var onOpenSettings: () -> Void
     
     var body: some ToolbarContent {
-        // Sidebar Toggle is now attached directly to SidebarView
-        
         // Right Actions (Fixed to Right via Spacer)
         ToolbarItemGroup(placement: .automatic) {
             Spacer() // Push everything to the trailing edge

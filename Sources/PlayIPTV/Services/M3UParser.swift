@@ -43,7 +43,8 @@ struct M3UParser {
                         logoUrl: logoUrl,
                         streamUrl: url,
                         categoryId: groupTitle, // Using group-title as categoryId for M3U
-                        groupTitle: groupTitle
+                        groupTitle: groupTitle,
+                        isSeries: false
                     )
                     channels.append(channel)
                 }

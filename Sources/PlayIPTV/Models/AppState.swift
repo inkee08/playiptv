@@ -1,18 +1,49 @@
 import SwiftUI
+import Combine
 
 @Observable
+@MainActor
 class AppState {
     var channels: [Channel] = []
     var categories: [Category] = []
-    var selectedCategory: Category?
-    var selectedChannel: Channel? {
+    var selectedCategory: Category? = nil {
         didSet {
-            Task { @MainActor in
-                checkAndStopPlayer()
+            // Clear search text when changing categories
+            if oldValue?.id != selectedCategory?.id {
+                searchText = ""
             }
         }
     }
+    
+    // Computed Recent category
+    var recentCategory: Category {
+        Category(id: "recent", name: "Recent", type: .series)
+    }
+    
+    // Computed Favorites categories
+    var favoritesLiveCategory: Category {
+        Category(id: "fav_live", name: "Favorites (Live)", type: .live)
+    }
+    
+    var favoritesVODCategory: Category {
+        Category(id: "fav_vod", name: "Favorites (VOD)", type: .movie)
+    }
+    
+    // All categories including Favorites and Recent
+    var allCategories: [Category] {
+        [favoritesLiveCategory, favoritesVODCategory, recentCategory] + categories
+    }
+    var selectedChannel: Channel? {
+        didSet {
+            print("DEBUG: AppState - selectedChannel changed from \(oldValue?.name ?? "nil") to \(selectedChannel?.name ?? "nil")")
+        }
+    }
     var searchText: String = ""
+    
+    // Force UI updates when recent list changes
+    private var recentVODUpdateToken: Int = 0
+    private var favoritesUpdateToken: Int = 0
+    private var cancellables = Set<AnyCancellable>()
     
     // Theme support
     enum AppTheme: String, CaseIterable, Codable, Identifiable {
@@ -30,25 +61,6 @@ class AppState {
     }
     var settingsTab: SettingsTab = .general
     
-    // Player State
-    enum PlayerMode: String, CaseIterable, Codable, Identifiable {
-        case attached = "Attached"
-        case detached = "Detached"
-        var id: String { rawValue }
-    }
-    var playerMode: PlayerMode = .detached
-    
-    var detachedChannel: Channel? {
-        didSet {
-            Task { @MainActor in
-                checkAndStopPlayer()
-            }
-        }
-    }
-    
-    // Flag to prevent stopping player during mode switches
-    private var isSwitchingModes: Bool = false
-    
     // Playback Signals
     var playPauseSignal: Bool = false
     // toggleFullscreenSignal removed - utilizing NSApp.keyWindow direct toggle
@@ -56,14 +68,226 @@ class AppState {
     // Runtime state for channel browser (can be toggled independently)
     var isChannelBrowserVisible: Bool = false
     
-    func selectChannel(_ channel: Channel) {
-        if playerMode == .attached {
-            selectedChannel = channel
-            detachedChannel = nil
-        } else {
-            detachedChannel = channel
-            selectedChannel = nil
+    // Episode selection state
+    var selectedSeriesForEpisodes: Channel?
+    var episodesForSeries: [Episode] = []
+    var isLoadingEpisodes: Bool = false
+    
+    init() {
+        loadDebugSourceIfAvailable()
+        
+        // Listen for changes in RecentVODManager
+        RecentVODManager.shared.objectWillChange
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.recentVODUpdateToken += 1
+                }
+            }
+            .store(in: &cancellables)
+            
+        // Listen for changes in FavoritesManager
+        FavoritesManager.shared.objectWillChange
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.favoritesUpdateToken += 1
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func loadDebugSourceIfAvailable() {
+        let fileManager = FileManager.default
+        
+        // Try multiple possible locations for debug-config.json
+        var possiblePaths: [String] = []
+        
+        // 1. Check SOURCE_ROOT environment variable (can be set when running)
+        if let sourceRoot = ProcessInfo.processInfo.environment["SOURCE_ROOT"] {
+            possiblePaths.append("\(sourceRoot)/debug-config.json")
         }
+        
+        // 2. Current working directory
+        possiblePaths.append("\(fileManager.currentDirectoryPath)/debug-config.json")
+        
+        // 3. Project root (when running from .build)
+        possiblePaths.append("\(fileManager.currentDirectoryPath)/../../debug-config.json")
+        
+        // 4. Hardcoded path (update this to match your project location)
+        possiblePaths.append("/Users/inkee/Documents/GitHub/playiptv/debug-config.json")
+        
+        var debugConfigPath: String?
+        for path in possiblePaths {
+            let normalizedPath = (path as NSString).standardizingPath
+            if fileManager.fileExists(atPath: normalizedPath) {
+                debugConfigPath = normalizedPath
+                print("DEBUG: Found debug-config.json at: \(normalizedPath)")
+                break
+            }
+        }
+        
+        guard let configPath = debugConfigPath else {
+            print("DEBUG: No debug-config.json found. Checked paths:")
+            for path in possiblePaths {
+                print("  - \((path as NSString).standardizingPath)")
+            }
+            return
+        }
+        
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: configPath)),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let sourcesArray = json["sources"] as? [[String: String]] else {
+            print("DEBUG: Failed to parse debug-config.json at \(configPath)")
+            return
+        }
+        
+        print("DEBUG: Loading \(sourcesArray.count) debug source(s) from debug-config.json")
+        
+        var firstSource: Source?
+        
+        for sourceDict in sourcesArray {
+            guard let name = sourceDict["name"],
+                  let typeString = sourceDict["type"] else {
+                print("DEBUG: Skipping source with missing name or type")
+                continue
+            }
+            
+            let debugSource: Source
+            
+            if typeString == "xtream" {
+                guard let url = sourceDict["xtreamUrl"],
+                      let username = sourceDict["username"],
+                      let password = sourceDict["password"] else {
+                    print("DEBUG: Skipping invalid Xtream source: \(name)")
+                    continue
+                }
+                
+                debugSource = Source(
+                    name: name,
+                    type: .xtream,
+                    m3uUrl: nil,
+                    xtreamUrl: url,
+                    xtreamUser: username,
+                    xtreamPass: password
+                )
+            } else if typeString == "m3u" {
+                guard let m3uUrl = sourceDict["m3uUrl"] else {
+                    print("DEBUG: Skipping invalid M3U source: \(name)")
+                    continue
+                }
+                
+                debugSource = Source(
+                    name: name,
+                    type: .m3u,
+                    m3uUrl: m3uUrl,
+                    xtreamUrl: nil,
+                    xtreamUser: nil,
+                    xtreamPass: nil
+                )
+            } else {
+                print("DEBUG: Unknown source type: \(typeString)")
+                continue
+            }
+            
+            print("DEBUG: Adding debug source: \(name) (\(typeString))")
+            sources.append(debugSource)
+            
+            // Track first source
+            if firstSource == nil {
+                firstSource = debugSource
+            }
+            
+            Task {
+                await loadSource(debugSource)
+            }
+        }
+        
+        // Set the first source as selected
+        if let first = firstSource {
+            currentSource = first
+            print("DEBUG: Set currentSource to: \(first.name)")
+        }
+    }
+    
+    func selectChannel(_ channel: Channel) {
+        // Check if this is VOD content (movies only, not live TV or series)
+        // A channel is VOD if:
+        // 1. It's not a series
+        // 2. It's in a Movie category OR doesn't have "Live" in its category/group
+        let isMovie = channel.categoryId.lowercased().contains("movie") || 
+                      channel.groupTitle?.lowercased().contains("movie") == true
+        let isLiveTV = channel.categoryId.lowercased().contains("live") || 
+                       channel.groupTitle?.lowercased().contains("live") == true
+        
+        let isVOD = !channel.isSeries && isMovie && !isLiveTV
+        
+        print("DEBUG: selectChannel - \(channel.name)")
+        print("DEBUG: isSeries: \(channel.isSeries), isMovie: \(isMovie), isLiveTV: \(isLiveTV), isVOD: \(isVOD)")
+        
+        if isVOD {
+            // Check for saved position
+            let savedPosition = PlaybackPositionManager.shared.getPosition(streamId: channel.streamId)
+            
+            // Show unified VOD dialog (with or without resume option)
+            vodDialogChannel = channel
+            vodDialogSavedPosition = (savedPosition != nil && savedPosition! > 5) ? savedPosition : nil
+            showVODDialog = true
+        } else {
+            // Play directly for live TV and series
+            selectedChannel = channel
+            handlePlaybackTrigger()
+        }
+    }
+    
+    func playVODFromStart() {
+        guard let channel = vodDialogChannel else { return }
+        if let _ = vodDialogSavedPosition {
+            PlaybackPositionManager.shared.clearPosition(streamId: channel.streamId)
+        }
+        
+        // Track in recent VOD (movies only, not series)
+        if !channel.isSeries, let sourceUrlString = currentSource?.url?.absoluteString {
+            RecentVODManager.shared.addRecentVOD(
+                streamId: channel.streamId,
+                name: channel.name,
+                logoUrl: channel.logoUrl,
+                sourceUrl: sourceUrlString,
+                isSeries: false
+            )
+        }
+        
+        selectedChannel = channel
+        showVODDialog = false
+        vodDialogChannel = nil
+        vodDialogSavedPosition = nil
+        playChannel(channel, startPosition: nil)
+    }
+    
+    func resumeVOD() {
+        guard let channel = vodDialogChannel,
+              let position = vodDialogSavedPosition else { return }
+        
+        // Track in recent VOD (movies only, not series)
+        if !channel.isSeries, let sourceUrlString = currentSource?.url?.absoluteString {
+            RecentVODManager.shared.addRecentVOD(
+                streamId: channel.streamId,
+                name: channel.name,
+                logoUrl: channel.logoUrl,
+                sourceUrl: sourceUrlString,
+                isSeries: false
+            )
+        }
+        
+        selectedChannel = channel
+        showVODDialog = false
+        vodDialogChannel = nil
+        vodDialogSavedPosition = nil
+        playChannel(channel, startPosition: position)
+    }
+    
+    func cancelVOD() {
+        showVODDialog = false
+        vodDialogChannel = nil
+        vodDialogSavedPosition = nil
     }
     
     var filteredChannels: [Channel] {
@@ -71,7 +295,123 @@ class AppState {
         let channelsToFilter: [Channel]
         
         if let cat = selectedCategory {
-            channelsToFilter = channels.filter { $0.categoryId == cat.id || $0.groupTitle == cat.name }
+            // Check if this is the Recent category
+            if cat.id == "recent" {
+                // Read token to force update
+                let _ = recentVODUpdateToken
+                
+                // Get recent VOD for current source
+                guard let sourceUrl = currentSource?.url else {
+                    return []
+                }
+                let recentItems = RecentVODManager.shared.getRecents(for: sourceUrl.absoluteString)
+                channelsToFilter = channels.filter { channel in
+                    recentItems.contains { item in
+                        // 1. Must match Stream ID
+                        guard item.id == channel.streamId else { return false }
+                        
+                        // 2. Must match Content Type (Series vs Movie)
+                        guard item.isSeries == channel.isSeries else { return false }
+                        
+                        // 3. If it's a movie (isSeries=false), ensure we don't match Live TV with same ID
+                        if !item.isSeries {
+                            let isLiveTV = channel.categoryId.lowercased().contains("live") || 
+                                           channel.groupTitle?.lowercased().contains("live") == true
+                            if isLiveTV { return false }
+                        }
+                        
+                        return true
+                    }
+                }
+            } else if cat.id == "fav_live" {
+                // Favorites (Live)
+                let _ = favoritesUpdateToken
+                guard let sourceUrl = currentSource?.url else { return [] }
+                
+                let favorites = FavoritesManager.shared.getFavorites(for: sourceUrl.absoluteString, type: .live)
+                
+                // Create lookup map for faster checking
+                let favIds = Set(favorites.map { $0.id })
+                
+                let matchingChannels = channels.filter { channel in
+                    // 1. Basic ID check
+                    guard favIds.contains(channel.streamId) else { return false }
+                    
+                    // 2. Strict Type Check
+                    if channel.isSeries { return false } // Live is never a series
+                    
+                    // 3. Heuristic Check
+                    let isLiveTV = channel.categoryId.lowercased().contains("live") || 
+                                   channel.groupTitle?.lowercased().contains("live") == true
+                    return isLiveTV
+                }
+                
+                // Deduplicate by streamId
+                var seenIds = Set<String>()
+                channelsToFilter = matchingChannels.filter { channel in
+                    if seenIds.contains(channel.streamId) { return false }
+                    seenIds.insert(channel.streamId)
+                    return true
+                }
+            } else if cat.id == "fav_vod" {
+                // Favorites (VOD)
+                let _ = favoritesUpdateToken
+                guard let sourceUrl = currentSource?.url else { return [] }
+                
+                let favorites = FavoritesManager.shared.getFavorites(for: sourceUrl.absoluteString, type: .vod)
+                
+                // Create lookup to check isSeries property
+                // Map ID -> isSeries
+                var favMap: [String: Bool] = [:]
+                for fav in favorites {
+                    // Default to matching the channel's type if isSeries is nil (backward compatibility)
+                    // But if we have data, use it.
+                    if let isSeries = fav.isSeries {
+                        favMap[fav.id] = isSeries
+                    } else {
+                        // Fallback: if not set, we can't strictly filter by it,
+                        // so we might still have collision, but we'll try our best in the loop
+                        // Use a sentinel? No, just store nothing and handle below.
+                        // Ideally we assume false (Movie) or handle ambiguously.
+                        // Let's assume we want to match EXACTLY.
+                    }
+                }
+                
+                // Also keep a set of IDs for quick existence check
+                let favIds = Set(favorites.map { $0.id })
+
+                let matchingChannels = channels.filter { channel in
+                    // 1. Basic ID Check
+                    guard favIds.contains(channel.streamId) else { return false }
+                    
+                    // 2. Strict Type Check using saved `isSeries` flag if available
+                    // Find the favorite item for this ID
+                    if let savedIsSeries = favMap[channel.streamId] {
+                        if channel.isSeries != savedIsSeries {
+                            return false // ID Match but Type Mismatch -> Collision! Skip this one.
+                        }
+                    }
+                    
+                    // 3. General VOD check
+                    if channel.isSeries { return true }
+                    
+                    // If not series, ensure it is NOT Live TV
+                    let isLiveTV = channel.categoryId.lowercased().contains("live") || 
+                                   channel.groupTitle?.lowercased().contains("live") == true
+                    
+                    return !isLiveTV
+                }
+                
+                // Deduplicate by streamId
+                var seenIds = Set<String>()
+                channelsToFilter = matchingChannels.filter { channel in
+                    if seenIds.contains(channel.streamId) { return false }
+                    seenIds.insert(channel.streamId)
+                    return true
+                }
+            } else {
+                channelsToFilter = channels.filter { $0.categoryId == cat.id || $0.groupTitle == cat.name }
+            }
         } else {
             channelsToFilter = channels
         }
@@ -95,7 +435,10 @@ class AppState {
     
     // Load Current Source
     func loadSource(_ source: Source) async {
-        self.currentSource = source
+        // Only set currentSource if it's not already set (prevents race condition)
+        if currentSource == nil {
+            self.currentSource = source
+        }
         self.channels = []
         self.categories = []
         self.selectedCategory = nil
@@ -126,15 +469,25 @@ class AppState {
             
             let parsedChannels = await M3UParser.parse(content: content)
             
-            let newCategories = Dictionary(grouping: parsedChannels, by: { $0.groupTitle ?? "Uncategorized" })
-                .map { key, value in
-                    Category(id: key, name: key, type: .live)
-                }
-                .sorted { $0.name < $1.name }
+            // Create a single "Live TV" category for all M3U content
+            let liveCat = Category(id: "live_all", name: "Live TV", type: .live)
+            
+            // Map all channels to this category
+            let unifiedChannels = parsedChannels.map { channel in
+                Channel(
+                    streamId: channel.streamId,
+                    name: channel.name,
+                    logoUrl: channel.logoUrl,
+                    streamUrl: channel.streamUrl,
+                    categoryId: "live_all",
+                    groupTitle: channel.groupTitle,
+                    isSeries: channel.isSeries
+                )
+            }
             
             await MainActor.run {
-                self.channels = parsedChannels
-                self.categories = newCategories
+                self.channels = unifiedChannels
+                self.categories = [liveCat]
                 self.isLoading = false
             }
         } catch {
@@ -170,9 +523,10 @@ class AppState {
             let movieCat = Category(id: "vod_all", name: "Movies", type: .movie)
             let seriesCat = Category(id: "series_all", name: "Series", type: .series)
             
-            let taggedLive = live.map { Channel(streamId: $0.streamId, name: $0.name, logoUrl: $0.logoUrl, streamUrl: $0.streamUrl, categoryId: "live_all", groupTitle: "Live") }
-            let taggedVod = vod.map { Channel(streamId: $0.streamId, name: $0.name, logoUrl: $0.logoUrl, streamUrl: $0.streamUrl, categoryId: "vod_all", groupTitle: "Movies") }
-            let taggedSeries = series.map { Channel(streamId: $0.streamId, name: $0.name, logoUrl: $0.logoUrl, streamUrl: $0.streamUrl, categoryId: "series_all", groupTitle: "Series") }
+            // Channels from XtreamClient already have isSeries flag set correctly
+            let taggedLive = live.map { let ch = $0; return Channel(streamId: ch.streamId, name: ch.name, logoUrl: ch.logoUrl, streamUrl: ch.streamUrl, categoryId: "live_all", groupTitle: "Live", isSeries: ch.isSeries) }
+            let taggedVod = vod.map { let ch = $0; return Channel(streamId: ch.streamId, name: ch.name, logoUrl: ch.logoUrl, streamUrl: ch.streamUrl, categoryId: "vod_all", groupTitle: "Movies", isSeries: ch.isSeries) }
+            let taggedSeries = series.map { let ch = $0; return Channel(streamId: ch.streamId, name: ch.name, logoUrl: ch.logoUrl, streamUrl: ch.streamUrl, categoryId: "series_all", groupTitle: "Series", isSeries: ch.isSeries) }
             
             await MainActor.run {
                 self.channels = taggedLive + taggedVod + taggedSeries
@@ -184,6 +538,38 @@ class AppState {
             await MainActor.run {
                 self.errorMessage = error.localizedDescription
                 self.isLoading = false
+            }
+        }
+    }
+    
+    // Fetch episodes for a series
+    func fetchEpisodesForSeries(_ channel: Channel) async {
+        guard channel.isSeries,
+              let source = currentSource,
+              source.type == .xtream,
+              let urlStr = source.xtreamUrl,
+              let user = source.xtreamUser,
+              let pass = source.xtreamPass,
+              let client = XtreamClient(url: urlStr, username: user, password: pass) else {
+            return
+        }
+        
+        await MainActor.run {
+            isLoadingEpisodes = true
+            selectedSeriesForEpisodes = channel
+        }
+        
+        do {
+            let seriesInfo = try await client.fetchSeriesInfo(seriesId: channel.streamId)
+            await MainActor.run {
+                episodesForSeries = seriesInfo.episodes
+                isLoadingEpisodes = false
+            }
+        } catch {
+            print("ERROR: Failed to fetch episodes: \(error)")
+            await MainActor.run {
+                episodesForSeries = []
+                isLoadingEpisodes = false
             }
         }
     }
@@ -207,16 +593,15 @@ class AppState {
     // MARK: - Player Management
     @MainActor
     private func checkAndStopPlayer() {
-        // Don't stop during mode switches
-        guard !isSwitchingModes else {
-            print("DEBUG: AppState - Skipping stop check (mode switching)")
-            return
-        }
+        // Log current state for debugging
+        print("DEBUG: AppState - Stop check | Selected: \(selectedChannel?.name ?? "nil")")
         
-        // Only stop the player when both channels are nil (user closed all streams)
-        if selectedChannel == nil && detachedChannel == nil {
-            print("DEBUG: AppState - Both channels nil, stopping player")
+        // Stop the player when no channel is selected
+        if selectedChannel == nil {
+            print("DEBUG: AppState - ACTION -> Stopping player (No channel selected)")
             PlayerManager.shared.stop()
+        } else {
+            print("DEBUG: AppState - KEEPING player (Channel active)")
         }
     }
     
@@ -226,18 +611,50 @@ class AppState {
         categories = []
     }
     
-    @MainActor
-    func switchPlayerMode(to newMode: PlayerMode) {
-        isSwitchingModes = true
-        defer { isSwitchingModes = false }
-        
-        if newMode == .attached && detachedChannel != nil {
-            selectedChannel = detachedChannel
-            detachedChannel = nil
-        } else if newMode == .detached && selectedChannel != nil {
-            detachedChannel = selectedChannel
-            selectedChannel = nil
-            DetachedWindowManager.shared.open(appState: self)
+    // VOD playback dialog (handles both confirmation and resume)
+    var showVODDialog: Bool = false
+    var vodDialogChannel: Channel?
+    var vodDialogSavedPosition: Double?
+    
+    // Episode navigation
+    var currentSeriesId: String?
+    var currentEpisode: Episode?
+    var showingEpisodeList: Bool = false
+    var episodeListSeries: Channel?
+    
+    // Get the category that the current episode list series belongs to
+    var episodeListParentCategory: Category? {
+        guard let series = episodeListSeries else { return nil }
+        return categories.first { cat in
+            cat.id == series.categoryId || cat.name == series.groupTitle
         }
     }
+    
+    // MARK: - Playback Authority
+    
+    private var activeChannel: Channel? {
+        selectedChannel
+    }
+    
+    @MainActor
+    func handlePlaybackTrigger() {
+        if let channel = activeChannel {
+            print("DEBUG: AUTHORITY → Firing unified playback for: \(channel.name)")
+            // Play directly (VOD dialog is shown in selectChannel)
+            playChannel(channel, startPosition: nil)
+        } else {
+            print("DEBUG: AUTHORITY → All channels cleared. Stopping player.")
+            PlayerManager.shared.stop()
+        }
+    }
+    
+    func playChannel(_ channel: Channel, startPosition: Double?) {
+        PlayerManager.shared.play(
+            url: channel.streamUrl,
+            streamId: channel.streamId,
+            startPosition: startPosition,
+            force: false
+        )
+    }
+
 }

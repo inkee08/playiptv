@@ -12,6 +12,7 @@ struct PlayIPTVApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(appState: appState)
+                .environment(appState)
                 .onAppear { applyTheme(appState.theme) }
                 .onChange(of: appState.theme) { _, newTheme in
                     applyTheme(newTheme)
@@ -37,10 +38,12 @@ struct PlayIPTVApp: App {
         
         Settings {
             SettingsView(appState: appState)
+                .environment(appState)
         }
         
         Settings {
             SettingsView(appState: appState)
+                .environment(appState)
         }
     }
 

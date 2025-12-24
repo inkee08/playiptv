@@ -19,3 +19,4 @@ build.log
 .vscode/
 
 # Project Specific (if any)
+debug-config.json

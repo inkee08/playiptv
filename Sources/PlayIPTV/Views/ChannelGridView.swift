@@ -2,17 +2,14 @@ import SwiftUI
 
 struct ChannelGridView: View {
     var appState: AppState
-    
-    // View Mode State
-    // View Mode State - Now passed from ContentView
     @Binding var isListView: Bool
+    @State private var showEpisodePicker: Bool = false
 
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
     
     private var headerBackgroundColor: Color {
-        // We use semantic colors which will match the FORCED color scheme environment
         if isListView {
             return Color(nsColor: .controlBackgroundColor)
         } else {
@@ -22,57 +19,126 @@ struct ChannelGridView: View {
     
     var body: some View {
         Group {
-            if isListView {
-                List(appState.filteredChannels) { channel in
-                    HStack {
-                        if let _ = channel.logoUrl {
-                             Image(systemName: "tv") // Placeholder
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Image(systemName: "tv")
-                                .foregroundStyle(.secondary)
-                        }
-                        Text(channel.name)
-                        Spacer()
+            if appState.showingEpisodeList, let series = appState.episodeListSeries {
+                EpisodeListView(
+                    appState: appState,
+                    series: series,
+                    onBack: {
+                        appState.showingEpisodeList = false
+                        appState.episodeListSeries = nil
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        appState.selectChannel(channel)
-                        if appState.playerMode == .detached {
-                            // openWindow(id: "playerWindow")
-                            DetachedWindowManager.shared.open(appState: appState)
-                        }
-                    }
-                    .listRowBackground((appState.selectedChannel?.id == channel.id || appState.detachedChannel?.id == channel.id) ? Color.accentColor.opacity(0.2) : nil)
-                }
+                )
+            } else if isListView {
+                listView
             } else {
-                let columns = [GridItem(.adaptive(minimum: 160), spacing: 20)]
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 20) {
-                        ForEach(appState.filteredChannels) { channel in
-                            channelButton(for: channel)
-                        }
-                    }
-                    .padding()
+                gridView
+            }
+        }
+        .navigationTitle(appState.showingEpisodeList ? "" : (appState.selectedCategory?.name ?? "All Channels"))
+        .onChange(of: appState.selectedCategory) { oldValue, newValue in
+            // Close episode list when category changes OR when clicking the same category
+            if appState.showingEpisodeList {
+                // Check if user clicked the parent category of the current series
+                let clickedParentCategory = (newValue?.id == appState.episodeListParentCategory?.id)
+                
+                // Close if different category OR if clicking the parent category again
+                if oldValue?.id != newValue?.id || clickedParentCategory {
+                    appState.showingEpisodeList = false
+                    appState.episodeListSeries = nil
                 }
             }
         }
-        .navigationTitle(appState.selectedCategory?.name ?? "All Channels")
+    }
+    
+    private var listView: some View {
+        List {
+            // Show clear button for Recent category
+            if appState.selectedCategory?.id == "recent" && !appState.filteredChannels.isEmpty {
+                Button(action: {
+                    RecentVODManager.shared.clearAll()
+                }) {
+                    HStack {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
+                        Text("Clear Recent")
+                            .foregroundStyle(.red)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            
+            ForEach(appState.filteredChannels) { channel in
+                HStack {
+                    Image(systemName: "tv")
+                        .foregroundStyle(.secondary)
+                    Text(channel.name)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    handleChannelTap(channel)
+                }
+                .listRowBackground(appState.selectedChannel?.id == channel.id ? Color.accentColor.opacity(0.2) : nil)
+            }
+        }
+    }
+    
+    private var gridView: some View {
+        let columns = [GridItem(.adaptive(minimum: 160), spacing: 20)]
+        
+        return ScrollView {
+            VStack(spacing: 0) {
+                // Show clear button for Recent category
+                if appState.selectedCategory?.id == "recent" && !appState.filteredChannels.isEmpty {
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            RecentVODManager.shared.clearAll()
+                        }) {
+                            Label("Clear Recent", systemImage: "trash")
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.bordered)
+                        .padding()
+                    }
+                    .background(headerBackgroundColor)
+                }
+                
+                LazyVGrid(columns: columns, spacing: 20) {
+                    ForEach(appState.filteredChannels) { channel in
+                        channelButton(for: channel)
+                    }
+                }
+                .padding()
+            }
+        }
     }
     
     @ViewBuilder
     func channelButton(for channel: Channel) -> some View {
-        let isSelected = appState.selectedChannel?.id == channel.id || appState.detachedChannel?.id == channel.id
+        let isSelected = appState.selectedChannel?.id == channel.id
         Button(action: {
-            appState.selectChannel(channel)
-            if appState.playerMode == .detached {
-                // openWindow(id: "playerWindow")
-                DetachedWindowManager.shared.open(appState: appState)
-            }
+            handleChannelTap(channel)
         }) {
             ChannelCard(channel: channel, isSelected: isSelected)
         }
         .buttonStyle(.plain)
+    }
+    
+    private func handleChannelTap(_ channel: Channel) {
+        if channel.isSeries {
+            // Show inline episode list for series
+            Task {
+                await appState.fetchEpisodesForSeries(channel)
+                appState.episodeListSeries = channel
+                appState.showingEpisodeList = true
+            }
+        } else {
+            // Direct playback for live TV and movies
+            print("DEBUG: Playing channel: \(channel.name)")
+            print("DEBUG: Stream URL: \(channel.streamUrl)")
+            appState.selectChannel(channel)
+        }
     }
 }
 
@@ -86,18 +152,11 @@ struct ChannelCard: View {
                 .fill(Color.secondary.opacity(0.3))
                 .frame(height: 100)
                 .overlay {
-                    if let _ = channel.logoUrl {
-                        Image(systemName: "tv")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .padding(20)
-                    } else {
-                        Image(systemName: "tv")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .padding(20)
-                            .foregroundStyle(.secondary)
-                    }
+                    Image(systemName: "tv")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .padding(20)
+                        .foregroundStyle(.secondary)
                 }
             
             Text(channel.name)

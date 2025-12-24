@@ -27,6 +27,21 @@ struct Channel: Identifiable, Hashable {
     let streamUrl: URL
     let categoryId: String
     let groupTitle: String? // Raw group title from M3U
+    let isSeries: Bool // Flag to indicate if this is a series requiring episode selection
+}
+
+struct Episode: Identifiable, Hashable {
+    let id: String
+    let episodeNum: Int
+    let seasonNum: Int
+    let title: String?
+    let streamUrl: URL
+    let containerExtension: String
+}
+
+struct SeriesInfo {
+    let seriesId: String
+    let episodes: [Episode]
 }
 
 struct Source: Identifiable, Hashable, Codable {

@@ -1,0 +1,16 @@
+{
+  "sources": [
+    {
+      "name": "Debug Xtream Source",
+      "type": "xtream",
+      "xtreamUrl": "https://your-server.com",
+      "username": "your_username",
+      "password": "your_password"
+    },
+    {
+      "name": "Debug M3U Source",
+      "type": "m3u",
+      "m3uUrl": "https://example.com/playlist.m3u"
+    }
+  ]
+}

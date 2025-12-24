@@ -7,14 +7,27 @@ struct SidebarView: View {
     
     var body: some View {
         List(selection: $appState.selectedCategory) {
-            Button(action: {
-                appState.selectedCategory = nil
-            }) {
-                Label("All Channels", systemImage: "square.grid.2x2")
-            }
-            .buttonStyle(.plain) // Make it look like a list item
             
             Section("Categories") {
+                // Favorites categories
+                NavigationLink(value: appState.favoritesLiveCategory) {
+                    Label("Favorites (Live)", systemImage: "heart.fill")
+                        .foregroundStyle(.pink)
+                }
+                
+                // Show VOD items only for non-M3U sources (typically Xtream)
+                if appState.currentSource?.type != .m3u {
+                    NavigationLink(value: appState.favoritesVODCategory) {
+                        Label("Favorites (VOD)", systemImage: "heart.fill")
+                            .foregroundStyle(.purple)
+                    }
+                    
+                    // Recent category
+                    NavigationLink(value: appState.recentCategory) {
+                        Label("Recent", systemImage: "clock")
+                    }
+                }
+                
                 ForEach(appState.categories) { category in
                     NavigationLink(value: category) {
                         Label(category.name, systemImage: iconFor(category.type))
@@ -32,9 +45,22 @@ struct SidebarView: View {
                 }
             }
         }
+        .listStyle(.sidebar)
+        .toolbar(removing: .sidebarToggle)
+        .toolbar {
+            // Try principal or primaryAction to see if it moves it correctly on macOS
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: {
+                    NSApp.keyWindow?.firstResponder?.tryToPerform(#selector(NSSplitViewController.toggleSidebar(_:)), with: nil)
+                }) {
+                    Image(systemName: "sidebar.left")
+                }
+                .help("Toggle Sidebar")
+            }
+        }
     }
     
-    func iconFor(_ type: CategoryType) -> String {
+    private func iconFor(_ type: CategoryType) -> String {
         switch type {
         case .live: return "tv"
         case .movie: return "film"
