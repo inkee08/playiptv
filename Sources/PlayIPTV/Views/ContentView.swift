@@ -95,8 +95,18 @@ struct ContentView: View {
                             openSettings()
                         }
                     } label: {
-                        Label("Sources", systemImage: "server.rack")
+                        Text("\(appState.selectedSource?.name ?? "Select Source") ")
+                            .fontWeight(.medium)
+                        + Text(Image(systemName: "chevron.down"))
+                            .font(.system(size: 10, weight: .light))
+                            .foregroundStyle(.secondary)
                     }
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.4))
+                    )
+                    .menuIndicator(.hidden)
+                    .fixedSize()
                     
                     // View Mode
                     Picker("View Mode", selection: $isListView) {
