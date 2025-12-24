@@ -200,12 +200,8 @@ struct AppToolbar: ToolbarContent {
     var onOpenSettings: () -> Void
     
     var body: some ToolbarContent {
-        // Right Actions (Fixed to Right via Spacer)
-        ToolbarItemGroup(placement: .automatic) {
-            Spacer() // Push everything to the trailing edge
-            
-            // 2. Right Actions
-            // Source Picker
+        // Source Picker
+        ToolbarItem(placement: .status) {
             Menu {
                 Picker("Source", selection: Binding(
                     get: { appState.selectedSource },
@@ -226,35 +222,24 @@ struct AppToolbar: ToolbarContent {
             } label: {
                 Label("Sources", systemImage: "server.rack")
             }
-            
-            Divider()
-            
-            // View Mode
+        }
+        
+        // View Mode
+        ToolbarItem(placement: .status) {
             Picker("View Mode", selection: $isListView) {
                 Label("Grid", systemImage: "square.grid.2x2").tag(false)
                 Label("List", systemImage: "list.bullet").tag(true)
             }
             .pickerStyle(.inline)
-            
-            // Settings
+        }
+        
+        // Settings
+        ToolbarItem(placement: .status) {
             Button(action: {
                 onOpenSettings()
             }) {
                 Label("Settings", systemImage: "gear")
             }
-            
-            // Search Bar
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("Search...", text: Bindable(appState).searchText)
-                    .textFieldStyle(.plain)
-                    .frame(width: 180)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Material.regular)
-            .cornerRadius(6)
         }
     }
 }

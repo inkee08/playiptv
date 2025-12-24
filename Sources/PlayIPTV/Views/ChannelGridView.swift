@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ChannelGridView: View {
-    var appState: AppState
+    @Bindable var appState: AppState
     @Binding var isListView: Bool
     @State private var showEpisodePicker: Bool = false
 
@@ -35,6 +35,7 @@ struct ChannelGridView: View {
             }
         }
         .navigationTitle(appState.showingEpisodeList ? "" : (appState.selectedCategory?.name ?? "All Channels"))
+        .searchable(text: $appState.channelSearchText, placement: .toolbar, prompt: "Search channels...")
         .onChange(of: appState.selectedCategory) { oldValue, newValue in
             // Close episode list when category changes OR when clicking the same category
             if appState.showingEpisodeList {

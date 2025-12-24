@@ -143,6 +143,7 @@ class AppState {
     
     // Runtime state for channel browser (can be toggled independently)
     var isChannelBrowserVisible: Bool = false
+    var channelSearchText: String = "" // Shared search text for channel filtering
     
     // Episode selection state
     var selectedSeriesForEpisodes: Channel?
@@ -442,7 +443,7 @@ class AppState {
     }
     
     var filteredChannels: [Channel] {
-        let text = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = channelSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         var channelsToFilter: [Channel]
         
         if let cat = selectedCategory {

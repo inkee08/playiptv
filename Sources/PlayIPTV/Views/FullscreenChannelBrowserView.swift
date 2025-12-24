@@ -2,10 +2,9 @@ import SwiftUI
 
 struct FullscreenChannelBrowserView: View {
     @Bindable var appState: AppState
-    @State private var searchText: String = ""
     
     var filteredChannels: [Channel] {
-        let text = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = appState.channelSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let channels = appState.filteredChannels
         
         if text.isEmpty {
@@ -25,11 +24,11 @@ struct FullscreenChannelBrowserView: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.secondary)
                         .font(.system(size: 14))
-                    TextField("Search...", text: $searchText)
+                    TextField("Search...", text: $appState.channelSearchText)
                         .textFieldStyle(.plain)
                         .frame(width: 150)
-                    if !searchText.isEmpty {
-                        Button(action: { searchText = "" }) {
+                    if !appState.channelSearchText.isEmpty {
+                        Button(action: { appState.channelSearchText = "" }) {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundStyle(.secondary)
                                 .font(.system(size: 14))
@@ -48,38 +47,49 @@ struct FullscreenChannelBrowserView: View {
             Divider()
             
             // Channel List
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(filteredChannels) { channel in
-                        let isSelected = appState.selectedChannel?.id == channel.id
-                        
-                        Button(action: {
-                            appState.selectChannel(channel)
-                        }) {
-                            HStack(spacing: 12) {
-                                Image(systemName: "tv")
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 20)
-                                
-                                Text(channel.name)
-                                    .lineLimit(1)
-                                    .foregroundStyle(isSelected ? .white : .primary)
-                                
-                                Spacer()
-                                
-                                if isSelected {
-                                    Image(systemName: "play.circle.fill")
-                                        .foregroundStyle(.white)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(filteredChannels) { channel in
+                            let isSelected = appState.selectedChannel?.id == channel.id
+                            
+                            Button(action: {
+                                appState.selectChannel(channel)
+                            }) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "tv")
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 20)
+                                    
+                                    Text(channel.name)
+                                        .lineLimit(1)
+                                        .foregroundStyle(isSelected ? .white : .primary)
+                                    
+                                    Spacer()
+                                    
+                                    if isSelected {
+                                        Image(systemName: "play.circle.fill")
+                                            .foregroundStyle(.white)
+                                    }
                                 }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(isSelected ? Color.accentColor : Color.clear)
+                                .contentShape(Rectangle())
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(isSelected ? Color.accentColor : Color.clear)
-                            .contentShape(Rectangle())
+                            .buttonStyle(.plain)
+                            .id(channel.id) // Add ID for scrolling
+                            
+                            Divider()
                         }
-                        .buttonStyle(.plain)
-                        
-                        Divider()
+                    }
+                }
+                .onAppear {
+                    // Scroll to selected channel when browser appears (instant, no animation)
+                    if let selectedId = appState.selectedChannel?.id {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            proxy.scrollTo(selectedId, anchor: .center)
+                        }
                     }
                 }
             }
