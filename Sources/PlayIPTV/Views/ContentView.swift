@@ -20,17 +20,6 @@ struct ContentView: View {
                 mainContent
             }
         }
-        .toolbar {
-            AppToolbar(
-                appState: appState,
-                isListView: $isListView,
-                onToggleSidebar: toggleSidebar,
-                onOpenSettings: { openSettings() }
-            )
-        }
-        .toolbarBackground(.visible, for: .windowToolbar)
-        .toolbarBackground(Color(nsColor: .windowBackgroundColor), for: .windowToolbar)
-        // Hide toolbar in fullscreen
         .toolbar(isFullscreen ? .hidden : .visible, for: .windowToolbar)
         .handleWindowFullscreen(isFullscreen: $isFullscreen)
         .sheet(isPresented: $appState.showVODDialog) {
@@ -81,6 +70,50 @@ struct ContentView: View {
                     ContentUnavailableView("Select a Channel", systemImage: "tv", description: Text("Choose a channel from the list to start watching."))
                 }
             }
+            .toolbar {
+                ToolbarItemGroup(placement: .automatic) {
+                    Spacer()
+                    
+                    // Source Picker
+                    Menu {
+                        Picker("Source", selection: Binding(
+                            get: { appState.selectedSource },
+                            set: { appState.selectedSource = $0 }
+                        )) {
+                            ForEach(appState.sources) { source in
+                                Text(source.name).tag(Optional(source))
+                            }
+                        }
+                        .pickerStyle(.inline)
+                        
+                        Divider()
+                        
+                        Button("Manage Sources...") {
+                            appState.settingsTab = .sources
+                            openSettings()
+                        }
+                    } label: {
+                        Label("Sources", systemImage: "server.rack")
+                    }
+                    
+                    // View Mode
+                    Picker("View Mode", selection: $isListView) {
+                        Label("Grid", systemImage: "square.grid.2x2").tag(false)
+                        Label("List", systemImage: "list.bullet").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                    
+                    // Settings
+                    Button(action: {
+                        openSettings()
+                    }) {
+                        Label("Settings", systemImage: "gear")
+                    }
+                }
+            }
+            .toolbarBackground(.visible, for: .windowToolbar)
+            .toolbarBackground(Color(nsColor: .windowBackgroundColor), for: .windowToolbar)
         }
         .navigationSplitViewStyle(.balanced)
     }
@@ -145,7 +178,7 @@ struct ContentView: View {
             .padding(.leading, appState.isChannelBrowserVisible ? 340 : 20)
             .padding(.top, 20)
         }
-        .ignoresSafeArea()
+        .ignoresSafeArea(edges: [.bottom, .leading, .trailing])
     }
     
     private func playerDetailView(channel: Channel) -> some View {
@@ -192,16 +225,17 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Independent Toolbar Component
-struct AppToolbar: ToolbarContent {
+// MARK: - Custom Right-Aligned Toolbar
+struct CustomToolbarView: View {
     var appState: AppState
     @Binding var isListView: Bool
-    var onToggleSidebar: () -> Void
     var onOpenSettings: () -> Void
     
-    var body: some ToolbarContent {
-        // Source Picker
-        ToolbarItem(placement: .status) {
+    var body: some View {
+        HStack(spacing: 12) {
+            Spacer()
+            
+            // Source Picker
             Menu {
                 Picker("Source", selection: Binding(
                     get: { appState.selectedSource },
@@ -222,25 +256,30 @@ struct AppToolbar: ToolbarContent {
             } label: {
                 Label("Sources", systemImage: "server.rack")
             }
-        }
-        
-        // View Mode
-        ToolbarItem(placement: .status) {
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            
+            // View Mode
             Picker("View Mode", selection: $isListView) {
                 Label("Grid", systemImage: "square.grid.2x2").tag(false)
                 Label("List", systemImage: "list.bullet").tag(true)
             }
-            .pickerStyle(.inline)
-        }
-        
-        // Settings
-        ToolbarItem(placement: .status) {
+            .pickerStyle(.segmented)
+            .fixedSize()
+            
+            // Settings
             Button(action: {
                 onOpenSettings()
             }) {
                 Label("Settings", systemImage: "gear")
             }
+            .buttonStyle(.borderless)
+            .fixedSize()
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Material.bar)
+        .zIndex(1000)
     }
 }
 
