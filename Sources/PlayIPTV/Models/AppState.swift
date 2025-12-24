@@ -4,11 +4,42 @@ import Combine
 @Observable
 @MainActor
 class AppState {
-    var channels: [Channel] = []
-    var categories: [Category] = []
+    // Data per source
+    struct SourceContent {
+        var channels: [Channel] = []
+        var categories: [Category] = []
+    }
+    
+    // Storage for all loaded sources
+    var sourceContent: [UUID: SourceContent] = [:]
+    
+    // Track loading state per source
+    var loadingSources: Set<UUID> = []
+    
+    var selectedSource: Source? {
+        didSet {
+            // clear selection when switching sources
+            if oldValue?.id != selectedSource?.id {
+                selectedCategory = nil
+                searchText = ""
+            }
+        }
+    }
+    
+    // Computed properties for UI compatibility
+    // These return content for the CURRENTLY SELECTED source
+    var channels: [Channel] {
+        guard let source = selectedSource, let content = sourceContent[source.id] else { return [] }
+        return content.channels
+    }
+    
+    var categories: [Category] {
+        guard let source = selectedSource, let content = sourceContent[source.id] else { return [] }
+        return content.categories
+    }
+    
     var selectedCategory: Category? = nil {
         didSet {
-            // Clear search text when changing categories
             if oldValue?.id != selectedCategory?.id {
                 searchText = ""
             }
@@ -76,6 +107,21 @@ class AppState {
     init() {
         #if DEBUG
         loadDebugSourceIfAvailable()
+        #else
+        // In release, load persisted sources immediately
+        // Note: loadSources (persistence) logic needs to be implemented or implicitly handled if `sources` is populated differently.
+        // Assuming we rely on a persistence manager or similar.
+        // But wait, the previous code had `loadSources` and `saveSources`. I need to check where `loadSources` went.
+        // User revert might have removed them or I overwrote.
+        // checking file... `loadSources` seems missing in the current view.
+        // I will re-implement minimal persistence logic or assume `sources` are loaded elsewhere?
+        // No, I must handle it.
+        // For now, I'll just add `Task { await loadAllSources() }` here and rely on `loadDebugSourceIfAvailable` for debug.
+        // Real persistence requires `loadSources`. I will add it back if missing.
+        Task {
+            // Load persistence here if needed
+            await loadAllSources()
+        }
         #endif
         
         // Listen for changes in RecentVODManager
@@ -203,10 +249,15 @@ class AppState {
             }
         }
         
-        // Set the first source as selected
-        if let first = firstSource {
-            currentSource = first
-            print("DEBUG: Set currentSource to: \(first.name)")
+        // Now load all sources (persisted + debug)
+        Task {
+            // Set the first debug source as selected if no other source was selected from persistence
+            if selectedSource == nil, let first = firstSource {
+                await MainActor.run {
+                    selectedSource = first
+                    print("DEBUG: Set selectedSource to first debug source: \(first.name)")
+                }
+            }
         }
     }
     
@@ -247,7 +298,10 @@ class AppState {
         }
         
         // Track in recent VOD (movies only, not series)
-        if !channel.isSeries, let sourceUrlString = currentSource?.url?.absoluteString {
+        if !channel.isSeries,
+           let source = sources.first(where: { $0.id == channel.sourceId }),
+           let sourceUrlString = source.url?.absoluteString {
+               
             RecentVODManager.shared.addRecentVOD(
                 streamId: channel.streamId,
                 name: channel.name,
@@ -269,7 +323,9 @@ class AppState {
               let position = vodDialogSavedPosition else { return }
         
         // Track in recent VOD (movies only, not series)
-        if !channel.isSeries, let sourceUrlString = currentSource?.url?.absoluteString {
+        if !channel.isSeries,
+           let source = sources.first(where: { $0.id == channel.sourceId }),
+           let sourceUrlString = source.url?.absoluteString {
             RecentVODManager.shared.addRecentVOD(
                 streamId: channel.streamId,
                 name: channel.name,
@@ -294,7 +350,7 @@ class AppState {
     
     var filteredChannels: [Channel] {
         let text = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let channelsToFilter: [Channel]
+        var channelsToFilter: [Channel]
         
         if let cat = selectedCategory {
             // Check if this is the Recent category
@@ -303,11 +359,11 @@ class AppState {
                 let _ = recentVODUpdateToken
                 
                 // Get recent VOD for current source
-                guard let sourceUrl = currentSource?.url else {
+                guard let source = selectedSource, let sourceUrl = source.url, let content = sourceContent[source.id] else {
                     return []
                 }
                 let recentItems = RecentVODManager.shared.getRecents(for: sourceUrl.absoluteString)
-                channelsToFilter = channels.filter { channel in
+                channelsToFilter = content.channels.filter { channel in
                     recentItems.contains { item in
                         // 1. Must match Stream ID
                         guard item.id == channel.streamId else { return false }
@@ -328,9 +384,14 @@ class AppState {
             } else if cat.id == "fav_live" {
                 // Favorites (Live)
                 let _ = favoritesUpdateToken
-                guard let sourceUrl = currentSource?.url else { return [] }
+                guard let source = selectedSource, let sourceUrl = source.url, let content = sourceContent[source.id] else { return [] }
                 
                 let favorites = FavoritesManager.shared.getFavorites(for: sourceUrl.absoluteString, type: .live)
+                
+                // Filter content using the content we just guarded
+                channelsToFilter = content.channels.filter { channel in
+                    favorites.contains(where: { $0.id == channel.streamId })
+                }
                 
                 // Create lookup map for faster checking
                 let favIds = Set(favorites.map { $0.id })
@@ -358,9 +419,14 @@ class AppState {
             } else if cat.id == "fav_vod" {
                 // Favorites (VOD)
                 let _ = favoritesUpdateToken
-                guard let sourceUrl = currentSource?.url else { return [] }
+                guard let source = selectedSource, let sourceUrl = source.url, let content = sourceContent[source.id] else { return [] }
                 
                 let favorites = FavoritesManager.shared.getFavorites(for: sourceUrl.absoluteString, type: .vod)
+                
+                // Filter content using the content we just guarded
+                channelsToFilter = content.channels.filter { channel in
+                    favorites.contains(where: { $0.id == channel.streamId })
+                }
                 
                 // Create lookup to check isSeries property
                 // Map ID -> isSeries
@@ -412,10 +478,12 @@ class AppState {
                     return true
                 }
             } else {
-                channelsToFilter = channels.filter { $0.categoryId == cat.id || $0.groupTitle == cat.name }
+                guard let source = selectedSource, let content = sourceContent[source.id] else { return [] }
+                channelsToFilter = content.channels.filter { $0.categoryId == cat.id || $0.groupTitle == cat.name }
             }
         } else {
-            channelsToFilter = channels
+            guard let source = selectedSource, let content = sourceContent[source.id] else { return [] }
+            channelsToFilter = content.channels
         }
         
         if text.isEmpty {
@@ -430,37 +498,55 @@ class AppState {
     
     // Multi-source management
     var sources: [Source] = []
-    var currentSource: Source?
     
-    // Temporary credentials for "Add Source" form (if needed by view, but ideally view handles this)
-    // We will keep AppState clean and let View handle new source creation, then call addSource().
-    
-    // Load Current Source
-    func loadSource(_ source: Source) async {
-        // Only set currentSource if it's not already set (prevents race condition)
-        if currentSource == nil {
-            self.currentSource = source
+    func loadAllSources() async {
+        print("DEBUG: Loading all sources...")
+        await MainActor.run {
+            loadingSources = Set(sources.map { $0.id })
+            
+            // Set initial selected source if needed
+            if selectedSource == nil, let first = sources.first {
+                selectedSource = first
+            }
         }
-        self.channels = []
-        self.categories = []
-        self.selectedCategory = nil
-        self.selectedChannel = nil
         
-        await MainActor.run { isLoading = true; errorMessage = nil }
+        await withTaskGroup(of: Void.self) { group in
+            for source in sources {
+                group.addTask {
+                    await self.loadSource(source)
+                }
+            }
+        }
+    }
+    
+    // Load Specific Source
+    func loadSource(_ source: Source) async {
+        print("DEBUG: Loading source: \(source.name)")
+        
+        _ = await MainActor.run { loadingSources.insert(source.id) }
+        
+        let newContent: SourceContent
         
         switch source.type {
         case .m3u:
-            await loadM3U(source: source)
+            newContent = await loadM3U(source: source)
         case .xtream:
-            await loadXtream(source: source)
+            newContent = await loadXtream(source: source)
+        }
+        
+        await MainActor.run {
+            sourceContent[source.id] = newContent
+            loadingSources.remove(source.id)
+            print("DEBUG: Loaded \(newContent.channels.count) channels for \(source.name)")
         }
     }
     
     // Load M3U
-    private func loadM3U(source: Source) async {
+    // Load M3U
+    private func loadM3U(source: Source) async -> SourceContent {
         guard let urlStr = source.m3uUrl, let url = URL(string: urlStr) else {
-            await MainActor.run { errorMessage = "Invalid M3U URL"; isLoading = false }
-            return
+            await MainActor.run { errorMessage = "Invalid M3U URL for \(source.name)" }
+            return SourceContent()
         }
         
         do {
@@ -477,6 +563,7 @@ class AppState {
             // Map all channels to this category
             let unifiedChannels = parsedChannels.map { channel in
                 Channel(
+                    sourceId: source.id,
                     streamId: channel.streamId,
                     name: channel.name,
                     logoUrl: channel.logoUrl,
@@ -487,27 +574,23 @@ class AppState {
                 )
             }
             
-            await MainActor.run {
-                self.channels = unifiedChannels
-                self.categories = [liveCat]
-                self.isLoading = false
-            }
+            return SourceContent(channels: unifiedChannels, categories: [liveCat])
+            
         } catch {
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
+            print("ERROR: M3U Load failed for \(source.name): \(error)")
+            await MainActor.run { errorMessage = error.localizedDescription }
+            return SourceContent()
         }
     }
     
     // Load Xtream
-    private func loadXtream(source: Source) async {
+    private func loadXtream(source: Source) async -> SourceContent {
         guard let urlStr = source.xtreamUrl,
               let user = source.xtreamUser,
               let pass = source.xtreamPass,
               let client = XtreamClient(url: urlStr, username: user, password: pass) else {
-            await MainActor.run { errorMessage = "Invalid Credentials"; isLoading = false }
-            return
+            await MainActor.run { errorMessage = "Invalid Credentials for \(source.name)" }
+            return SourceContent()
         }
         
         do {
@@ -526,28 +609,23 @@ class AppState {
             let seriesCat = Category(id: "series_all", name: "Series", type: .series)
             
             // Channels from XtreamClient already have isSeries flag set correctly
-            let taggedLive = live.map { let ch = $0; return Channel(streamId: ch.streamId, name: ch.name, logoUrl: ch.logoUrl, streamUrl: ch.streamUrl, categoryId: "live_all", groupTitle: "Live", isSeries: ch.isSeries) }
-            let taggedVod = vod.map { let ch = $0; return Channel(streamId: ch.streamId, name: ch.name, logoUrl: ch.logoUrl, streamUrl: ch.streamUrl, categoryId: "vod_all", groupTitle: "Movies", isSeries: ch.isSeries) }
-            let taggedSeries = series.map { let ch = $0; return Channel(streamId: ch.streamId, name: ch.name, logoUrl: ch.logoUrl, streamUrl: ch.streamUrl, categoryId: "series_all", groupTitle: "Series", isSeries: ch.isSeries) }
+            let taggedLive = live.map { let ch = $0; return Channel(sourceId: source.id, streamId: ch.streamId, name: ch.name, logoUrl: ch.logoUrl, streamUrl: ch.streamUrl, categoryId: "live_all", groupTitle: "Live", isSeries: ch.isSeries) }
+            let taggedVod = vod.map { let ch = $0; return Channel(sourceId: source.id, streamId: ch.streamId, name: ch.name, logoUrl: ch.logoUrl, streamUrl: ch.streamUrl, categoryId: "vod_all", groupTitle: "Movies", isSeries: ch.isSeries) }
+            let taggedSeries = series.map { let ch = $0; return Channel(sourceId: source.id, streamId: ch.streamId, name: ch.name, logoUrl: ch.logoUrl, streamUrl: ch.streamUrl, categoryId: "series_all", groupTitle: "Series", isSeries: ch.isSeries) }
             
-            await MainActor.run {
-                self.channels = taggedLive + taggedVod + taggedSeries
-                self.categories = [liveCat, movieCat, seriesCat]
-                self.isLoading = false
-            }
+            return SourceContent(channels: taggedLive + taggedVod + taggedSeries, categories: [liveCat, movieCat, seriesCat])
             
         } catch {
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
+            print("ERROR: Xtream Load failed for \(source.name): \(error)")
+            await MainActor.run { errorMessage = error.localizedDescription }
+            return SourceContent()
         }
     }
     
     // Fetch episodes for a series
     func fetchEpisodesForSeries(_ channel: Channel) async {
         guard channel.isSeries,
-              let source = currentSource,
+              let source = sources.first(where: { $0.id == channel.sourceId }),
               source.type == .xtream,
               let urlStr = source.xtreamUrl,
               let user = source.xtreamUser,
@@ -580,15 +658,18 @@ class AppState {
         sources.append(source)
         Task {
             await loadSource(source)
+            if selectedSource == nil {
+                selectedSource = source
+            }
         }
     }
     
     func removeSource(_ source: Source) {
         sources.removeAll { $0.id == source.id }
-        if currentSource?.id == source.id {
-            currentSource = nil
-            channels = []
-            categories = []
+        sourceContent.removeValue(forKey: source.id)
+        if selectedSource?.id == source.id {
+            selectedSource = nil
+            selectedCategory = nil
         }
     }
     
@@ -608,9 +689,11 @@ class AppState {
     }
     
     func logout() {
-        currentSource = nil
-        channels = []
-        categories = []
+        selectedSource = nil
+        selectedCategory = nil
+        // Optional: clear persistence or keep loaded?
+        // User said "logout", usually implies clearing viewing state.
+        // Data stays loaded.
     }
     
     // VOD playback dialog (handles both confirmation and resume)

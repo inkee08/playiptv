@@ -8,7 +8,7 @@ struct SidebarView: View {
     var body: some View {
         List(selection: $appState.selectedCategory) {
             
-            Section("Categories") {
+            Section("Library") {
                 // Favorites categories
                 NavigationLink(value: appState.favoritesLiveCategory) {
                     Label("Favorites (Live)", systemImage: "heart.fill")
@@ -16,7 +16,7 @@ struct SidebarView: View {
                 }
                 
                 // Show VOD items only for non-M3U sources (typically Xtream)
-                if appState.currentSource?.type != .m3u {
+                if appState.selectedSource?.type != .m3u {
                     NavigationLink(value: appState.favoritesVODCategory) {
                         Label("Favorites (VOD)", systemImage: "heart.fill")
                             .foregroundStyle(.purple)
@@ -27,7 +27,9 @@ struct SidebarView: View {
                         Label("Recent", systemImage: "clock")
                     }
                 }
-                
+            }
+            
+            Section("Categories") {
                 ForEach(appState.categories) { category in
                     NavigationLink(value: category) {
                         Label(category.name, systemImage: iconFor(category.type))
@@ -36,15 +38,6 @@ struct SidebarView: View {
             }
         }
         .navigationSplitViewColumnWidth(min: 200, ideal: 250)
-        .navigationSplitViewColumnWidth(min: 200, ideal: 250)
-
-        .onChange(of: appState.currentSource) { oldValue, newValue in
-            if let source = newValue, source.id != oldValue?.id {
-                Task {
-                    await appState.loadSource(source)
-                }
-            }
-        }
         .listStyle(.sidebar)
         .toolbar(removing: .sidebarToggle)
         .toolbar {

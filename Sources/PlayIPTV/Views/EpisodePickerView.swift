@@ -99,7 +99,8 @@ struct EpisodePickerView: View {
         appState.currentEpisode = episode
         
         // Track in recent VOD
-        if let sourceUrlString = appState.currentSource?.url?.absoluteString {
+        if let source = appState.sources.first(where: { $0.id == series.sourceId }),
+           let sourceUrlString = source.url?.absoluteString {
             RecentVODManager.shared.addRecentVOD(
                 streamId: series.streamId,
                 name: series.name,

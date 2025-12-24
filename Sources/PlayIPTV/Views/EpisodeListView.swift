@@ -43,7 +43,8 @@ struct EpisodeListView: View {
                 Spacer()
                 
                 // Series Favorite Button
-                if let sourceUrl = appState.currentSource?.url?.absoluteString {
+                if let source = appState.sources.first(where: { $0.id == series.sourceId }),
+                   let sourceUrl = source.url?.absoluteString {
                     Button(action: {
                         favoritesManager.toggleFavorite(channel: series, sourceUrl: sourceUrl)
                     }) {
@@ -117,7 +118,9 @@ struct EpisodeListView: View {
         appState.currentEpisode = episode
         
         // Track in recent VOD
-        if let sourceUrlString = appState.currentSource?.url?.absoluteString {
+        // Track in recent VOD
+        if let source = appState.sources.first(where: { $0.id == series.sourceId }),
+           let sourceUrlString = source.url?.absoluteString {
             RecentVODManager.shared.addRecentVOD(
                 streamId: series.streamId,
                 name: series.name,

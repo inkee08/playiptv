@@ -63,69 +63,57 @@ struct SourceSettingsView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 
-                                // Show summary if this is the current source
-                                if appState.currentSource?.id == source.id {
-                                    if appState.isLoading {
-                                        HStack(spacing: 6) {
-                                            ProgressView()
-                                                .scaleEffect(0.7)
-                                                .frame(width: 12, height: 12)
-                                            Text("Loading...")
+                                // Show status and stats
+                                if appState.loadingSources.contains(source.id) {
+                                    HStack(spacing: 6) {
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                            .frame(width: 12, height: 12)
+                                        Text("Loading...")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.top, 2)
+                                } else if let content = appState.sourceContent[source.id] {
+                                    // Count channels by category type for THIS source
+                                    let liveCategories = Set(content.categories.filter { $0.type == .live }.map { $0.id })
+                                    let movieCategories = Set(content.categories.filter { $0.type == .movie }.map { $0.id })
+                                    let seriesCategories = Set(content.categories.filter { $0.type == .series }.map { $0.id })
+                                    
+                                    let liveCount = content.channels.filter { liveCategories.contains($0.categoryId) }.count
+                                    let movieCount = content.channels.filter { movieCategories.contains($0.categoryId) }.count
+                                    let seriesCount = content.channels.filter { seriesCategories.contains($0.categoryId) }.count
+                                    
+                                    HStack(spacing: 12) {
+                                        if liveCount > 0 {
+                                            Label("\(liveCount)", systemImage: "tv")
                                                 .font(.caption2)
                                                 .foregroundStyle(.secondary)
+                                                .help("\(liveCount) Live Channels")
                                         }
-                                        .padding(.top, 2)
-                                    } else {
-                                        // Count channels by category type
-                                        let liveCategories = Set(appState.categories.filter { $0.type == .live }.map { $0.id })
-                                        let movieCategories = Set(appState.categories.filter { $0.type == .movie }.map { $0.id })
-                                        let seriesCategories = Set(appState.categories.filter { $0.type == .series }.map { $0.id })
-                                        
-                                        let liveCount = appState.channels.filter { liveCategories.contains($0.categoryId) }.count
-                                        let movieCount = appState.channels.filter { movieCategories.contains($0.categoryId) }.count
-                                        let seriesCount = appState.channels.filter { seriesCategories.contains($0.categoryId) }.count
-                                        
-                                        HStack(spacing: 12) {
-                                            if liveCount > 0 {
-                                                Label("\(liveCount)", systemImage: "tv")
-                                                    .font(.caption2)
-                                                    .foregroundStyle(.secondary)
-                                                    .help("\(liveCount) Live Channels")
-                                            }
-                                            if movieCount > 0 {
-                                                Label("\(movieCount)", systemImage: "film")
-                                                    .font(.caption2)
-                                                    .foregroundStyle(.secondary)
-                                                    .help("\(movieCount) Movies")
-                                            }
-                                            if seriesCount > 0 {
-                                                Label("\(seriesCount)", systemImage: "tv.and.mediabox")
-                                                    .font(.caption2)
-                                                    .foregroundStyle(.secondary)
-                                                    .help("\(seriesCount) Series")
-                                            }
+                                        if movieCount > 0 {
+                                            Label("\(movieCount)", systemImage: "film")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                                .help("\(movieCount) Movies")
                                         }
-                                        .padding(.top, 2)
+                                        if seriesCount > 0 {
+                                            Label("\(seriesCount)", systemImage: "tv.and.mediabox")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                                .help("\(seriesCount) Series")
+                                        }
                                     }
+                                    .padding(.top, 2)
                                 }
                             }
                             
                             Spacer()
                             
-                            if appState.currentSource?.id == source.id {
-                                if appState.isLoading {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                } else {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.green)
-                                }
-                            } else {
-                                Button("Load") {
-                                    Task {
-                                        await appState.loadSource(source)
-                                    }
-                                }
+                            // Status Icon
+                            if !appState.loadingSources.contains(source.id) {
+                                Image(systemName: "checkmark.circle")
+                                    .foregroundStyle(.secondary.opacity(0.5))
                             }
                         }
                         .contextMenu {

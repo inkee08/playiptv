@@ -13,7 +13,7 @@ struct ContentView: View {
     
     var body: some View {
         Group {
-            if appState.currentSource == nil {
+            if appState.sources.isEmpty {
                 WelcomeView(appState: appState)
                     .frame(minWidth: 600, minHeight: 400)
             } else {
@@ -63,7 +63,7 @@ struct ContentView: View {
     
     // Stable player view that persists across mode changes
     private var playerView: some View {
-        PlayerView()
+        PlayerView(isFullscreen: isFullscreen)
             .id("stable-player-view") // Prevent recreation
             .focused($isPlayerFocused)
     }
@@ -131,8 +131,8 @@ struct ContentView: View {
             }) {
                 ZStack {
                     Circle()
-                        .fill(.black.opacity(0.8))
-                        .frame(width: 44, height: 44)
+                    .fill(.black.opacity(0.8))
+                    .frame(width: 44, height: 44)
                     
                     Text(appState.isChannelBrowserVisible ? "◀" : "▶")
                         .font(.system(size: 18, weight: .bold))
@@ -207,7 +207,10 @@ struct AppToolbar: ToolbarContent {
             // 2. Right Actions
             // Source Picker
             Menu {
-                Picker("Source", selection: Bindable(appState).currentSource) {
+                Picker("Source", selection: Binding(
+                    get: { appState.selectedSource },
+                    set: { appState.selectedSource = $0 }
+                )) {
                     ForEach(appState.sources) { source in
                         Text(source.name).tag(Optional(source))
                     }
@@ -223,6 +226,8 @@ struct AppToolbar: ToolbarContent {
             } label: {
                 Label("Sources", systemImage: "server.rack")
             }
+            
+            Divider()
             
             // View Mode
             Picker("View Mode", selection: $isListView) {
@@ -261,10 +266,10 @@ struct WelcomeView: View {
     var body: some View {
         VStack(spacing: 30) {
             Image(systemName: "tv.inset.filled")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 80, height: 80)
-                .foregroundStyle(.tint)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 80, height: 80)
+            .foregroundStyle(.tint)
             
             VStack(spacing: 10) {
                 Text("Welcome to PlayIPTV")

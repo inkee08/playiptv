@@ -19,6 +19,7 @@ class VLCViewContainer {
 struct PlayerView: View {
     @Environment(AppState.self) private var appState
     @State private var showControls = false
+    var isFullscreen: Bool = false
     
     var body: some View {
         ZStack {
@@ -28,7 +29,7 @@ struct PlayerView: View {
             
             // Media controls overlay
             if showControls, let channel = appState.selectedChannel {
-                MediaControlsView(channel: channel)
+                MediaControlsView(channel: channel, isFullscreen: isFullscreen)
                     .transition(.opacity)
             }
         }
@@ -70,6 +71,7 @@ struct SingletonVLCView: NSViewRepresentable {
 
 struct MediaControlsView: View {
     let channel: Channel
+    let isFullscreen: Bool
     @ObservedObject private var playerManager = PlayerManager.shared
     @ObservedObject private var favoritesManager = FavoritesManager.shared // Add observation
     @Environment(AppState.self) private var appState
@@ -154,7 +156,7 @@ struct MediaControlsView: View {
         VStack(spacing: 0) {
             // Favorites Button in top LEFT overlay
             HStack {
-                if let sourceUrl = appState.currentSource?.url?.absoluteString {
+                if let source = appState.selectedSource, let sourceUrl = source.url?.absoluteString {
                     // Determine target for favoriting
                     // If playing an episode, favorite the Series, otherwise favorite the channel
                     let targetChannel: Channel? = {
@@ -165,7 +167,7 @@ struct MediaControlsView: View {
                         return channel
                     }()
                     
-                    if let target = targetChannel {
+                    if let target = targetChannel, !(isLiveTV && isFullscreen) {
                         Button(action: {
                             favoritesManager.toggleFavorite(channel: target, sourceUrl: sourceUrl)
                         }) {

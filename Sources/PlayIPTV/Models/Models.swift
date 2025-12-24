@@ -21,6 +21,7 @@ struct Category: Identifiable, Hashable {
 
 struct Channel: Identifiable, Hashable {
     let id: UUID = UUID() // Unique ID for UI stability
+    var sourceId: UUID = UUID() // Link to origin source
     let streamId: String // The actual ID from source (URL or API ID)
     let name: String
     let logoUrl: URL?
