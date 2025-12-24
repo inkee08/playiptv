@@ -22,6 +22,13 @@ class AppState {
             if oldValue?.id != selectedSource?.id {
                 selectedCategory = nil
                 searchText = ""
+                
+                // Persist selection
+                if let id = selectedSource?.id.uuidString {
+                    UserDefaults.standard.set(id, forKey: "lastSourceId")
+                } else {
+                    UserDefaults.standard.removeObject(forKey: "lastSourceId")
+                }
             }
         }
     }
@@ -83,7 +90,11 @@ class AppState {
         case dark = "Dark"
         var id: String { rawValue }
     }
-    var theme: AppTheme = .system
+    var theme: AppTheme = .system {
+        didSet {
+            UserDefaults.standard.set(theme.rawValue, forKey: "appTheme")
+        }
+    }
     
     // Settings Navigation
     enum SettingsTab: Hashable {
@@ -105,24 +116,37 @@ class AppState {
     var isLoadingEpisodes: Bool = false
     
     init() {
+        // Load Theme
+        if let savedTheme = UserDefaults.standard.string(forKey: "appTheme"),
+           let loadedTheme = AppTheme(rawValue: savedTheme) {
+            self.theme = loadedTheme
+        }
+        
+        // Load Sources
+        if let data = UserDefaults.standard.data(forKey: "savedSources"),
+           let loadedSources = try? JSONDecoder().decode([Source].self, from: data) {
+            self.sources = loadedSources
+        }
+        
         #if DEBUG
         loadDebugSourceIfAvailable()
-        #else
-        // In release, load persisted sources immediately
-        // Note: loadSources (persistence) logic needs to be implemented or implicitly handled if `sources` is populated differently.
-        // Assuming we rely on a persistence manager or similar.
-        // But wait, the previous code had `loadSources` and `saveSources`. I need to check where `loadSources` went.
-        // User revert might have removed them or I overwrote.
-        // checking file... `loadSources` seems missing in the current view.
-        // I will re-implement minimal persistence logic or assume `sources` are loaded elsewhere?
-        // No, I must handle it.
-        // For now, I'll just add `Task { await loadAllSources() }` here and rely on `loadDebugSourceIfAvailable` for debug.
-        // Real persistence requires `loadSources`. I will add it back if missing.
-        Task {
-            // Load persistence here if needed
-            await loadAllSources()
-        }
         #endif
+        
+        // Load content for all sources
+        Task {
+            await loadAllSources()
+            
+            // Restore selection AFTER loading (or concurrent with it)
+            if selectedSource == nil {
+                if let lastId = UserDefaults.standard.string(forKey: "lastSourceId"),
+                   let source = sources.first(where: { $0.id.uuidString == lastId }) {
+                    await MainActor.run { selectedSource = source }
+                } else if let first = sources.first {
+                    // Fallback to first source
+                    await MainActor.run { selectedSource = first }
+                }
+            }
+        }
         
         // Listen for changes in RecentVODManager
         RecentVODManager.shared.objectWillChange
@@ -504,9 +528,10 @@ class AppState {
         await MainActor.run {
             loadingSources = Set(sources.map { $0.id })
             
-            // Set initial selected source if needed
-            if selectedSource == nil, let first = sources.first {
-                selectedSource = first
+            // Set initial selected source if needed (logic moved to init Task, but good to keep safe)
+            if selectedSource == nil && !sources.isEmpty {
+                // Only set if not already set by init logic
+                 // selectedSource = sources.first // Let init handle this to prefer saved source
             }
         }
         
@@ -656,6 +681,7 @@ class AppState {
     
     func addSource(_ source: Source) {
         sources.append(source)
+        saveSources()
         Task {
             await loadSource(source)
             if selectedSource == nil {
@@ -666,10 +692,22 @@ class AppState {
     
     func removeSource(_ source: Source) {
         sources.removeAll { $0.id == source.id }
+        saveSources()
         sourceContent.removeValue(forKey: source.id)
         if selectedSource?.id == source.id {
             selectedSource = nil
             selectedCategory = nil
+            
+            // Try to select another source
+            if let first = sources.first {
+                selectedSource = first
+            }
+        }
+    }
+    
+    private func saveSources() {
+        if let data = try? JSONEncoder().encode(sources) {
+            UserDefaults.standard.set(data, forKey: "savedSources")
         }
     }
     
