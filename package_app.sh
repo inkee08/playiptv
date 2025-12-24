@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# Build Arguments
+VERSION=$1
+
+if [ -z "$VERSION" ]; then
+    # Default to Test Build if no version specified
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    VERSION="0.0.0-test.$TIMESTAMP"
+    BUILD_TYPE="test"
+    echo "⚠️  No version specified. Creating TEST build: $VERSION"
+else
+    # Official Release
+    BUILD_TYPE="release"
+    echo "🚀 Creating OFFICIAL RELEASE: $VERSION"
+fi
+
 # Configuration
 APP_NAME="PlayIPTV"
 ICON_SOURCE="app_icon.png"
@@ -81,6 +96,10 @@ build_for_arch() {
     <string>com.example.$APP_NAME</string>
     <key>CFBundleName</key>
     <string>$APP_NAME</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$VERSION</string>
+    <key>CFBundleVersion</key>
+    <string>$VERSION</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundlePackageType</key>
@@ -103,7 +122,13 @@ EOF
     codesign --force --deep --sign - "$APP_BUNDLE"
 
     # Zip
-    ZIP_NAME="${APP_NAME}_${ARCH}.zip"
+    if [ "$BUILD_TYPE" == "release" ]; then
+        ZIP_NAME="${APP_NAME}_v${VERSION}_${ARCH}.zip"
+    else
+        # Version already contains "test" (e.g. 0.0.0-test.TIMESTAMP)
+        ZIP_NAME="${APP_NAME}_${VERSION}_${ARCH}.zip"
+    fi
+
     echo "📦 Zipping into $ZIP_NAME..."
     rm -f "$RELEASE_DIR/$ZIP_NAME"
     (cd "$RELEASE_DIR" && zip -r -q "$ZIP_NAME" "$APP_NAME.app")
@@ -127,7 +152,7 @@ if [ ! -f "AppIcon.icns" ] && [ -f "$ICON_SOURCE" ]; then
     sips -z 64 64     "$ICON_SOURCE" --out "$ICONSET/icon_32x32@2x.png" &>/dev/null
     sips -z 128 128   "$ICON_SOURCE" --out "$ICONSET/icon_128x128.png" &>/dev/null
     sips -z 256 256   "$ICON_SOURCE" --out "$ICONSET/icon_128x128@2x.png" &>/dev/null
-    sips -z 256 256   "$ICON_SOURCE" --out "$ICONSET/icon_256x256.png" &>/dev/null
+    sips -z 256 256   "$ICONSET/icon_256x256.png" &>/dev/null
     sips -z 512 512   "$ICON_SOURCE" --out "$ICONSET/icon_256x256@2x.png" &>/dev/null
     sips -z 512 512   "$ICON_SOURCE" --out "$ICONSET/icon_512x512.png" &>/dev/null
     sips -z 1024 1024 "$ICON_SOURCE" --out "$ICONSET/icon_512x512@2x.png" &>/dev/null
@@ -142,9 +167,9 @@ build_for_arch "arm64"
 echo ""
 echo "🎉 Build complete!"
 echo "📂 Artifacts in $RELEASE_DIR/"
-echo "   - App Bundle: $RELEASE_DIR/${APP_NAME}_arm64.app"
-echo "   - Distribution Zip: $RELEASE_DIR/${APP_NAME}_arm64.zip"
+echo "   - Distribution Zip: $RELEASE_DIR/${APP_NAME}*${ARCH}.zip"
 echo ""
 echo "🚀 To Release on GitHub:"
 echo "1. Go to your repo -> Releases -> Draft a new release"
-echo "2. Upload '$RELEASE_DIR/${APP_NAME}_arm64.zip'"
+echo "2. Tag it as v$VERSION"
+echo "3. Upload the zip file from $RELEASE_DIR/"
