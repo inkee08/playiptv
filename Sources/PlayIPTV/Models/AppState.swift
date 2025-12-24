@@ -74,7 +74,9 @@ class AppState {
     var isLoadingEpisodes: Bool = false
     
     init() {
+        #if DEBUG
         loadDebugSourceIfAvailable()
+        #endif
         
         // Listen for changes in RecentVODManager
         RecentVODManager.shared.objectWillChange
