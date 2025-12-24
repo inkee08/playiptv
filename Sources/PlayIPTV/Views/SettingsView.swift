@@ -23,6 +23,7 @@ struct SettingsView: View {
 
 struct GeneralSettingsView: View {
     @Bindable var appState: AppState
+    @ObservedObject private var epgManager = EPGManager.shared
     @Environment(\.openWindow) private var openWindow
     
     var body: some View {
@@ -40,6 +41,71 @@ struct GeneralSettingsView: View {
                 .padding()
             }
             
+            GroupBox(label: Label("EPG (Electronic Program Guide)", systemImage: "list.bullet.rectangle")) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Configure an XMLTV EPG source to display current programs for Live TV channels.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    HStack {
+                        TextField("EPG URL (XMLTV format)", text: Binding(
+                            get: { appState.epgUrl ?? "" },
+                            set: { appState.epgUrl = $0.isEmpty ? nil : $0 }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        
+                        Button("Refresh") {
+                            if let url = appState.epgUrl, !url.isEmpty {
+                                Task {
+                                    await EPGManager.shared.loadGlobalEPG(from: url)
+                                    appState.lastEPGUpdate = EPGManager.shared.lastUpdateTime
+                                }
+                            }
+                        }
+                        .disabled(appState.epgUrl?.isEmpty ?? true)
+                    }
+                    
+                    // Refresh interval picker
+                    HStack {
+                        Text("Auto-Refresh:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Picker("", selection: $appState.epgRefreshInterval) {
+                            ForEach(AppState.EPGRefreshInterval.allCases) { interval in
+                                Text(interval.rawValue).tag(interval)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                    }
+                    
+                    // Status display
+                    HStack(spacing: 8) {
+                        if EPGManager.shared.isLoading {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                                .frame(width: 12, height: 12)
+                            Text("Loading EPG data...")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else if let error = EPGManager.shared.lastError {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else if let lastUpdate = appState.lastEPGUpdate {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text("Last updated: \(lastUpdate, style: .relative) ago")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding()
+            }
+            
             Spacer()
         }
         .padding()
@@ -48,7 +114,9 @@ struct GeneralSettingsView: View {
 
 struct SourceSettingsView: View {
     @Bindable var appState: AppState
+    @ObservedObject private var epgManager = EPGManager.shared
     @State private var showingAddSource = false
+    @State private var editingSource: Source?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -105,10 +173,58 @@ struct SourceSettingsView: View {
                                         }
                                     }
                                     .padding(.top, 2)
+                                    
+                                    // EPG Status
+                                    if source.epgUrl != nil {
+                                        HStack(spacing: 6) {
+                                            if EPGManager.shared.loadingSourceIds.contains(source.id) {
+                                                ProgressView()
+                                                    .scaleEffect(0.6)
+                                                    .frame(width: 12, height: 12)
+                                                Text("Loading EPG...")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                            } else if let error = EPGManager.shared.sourceErrors[source.id] {
+                                                Image(systemName: "exclamationmark.triangle.fill")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.orange)
+                                                Text("EPG Error")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                                    .help(error)
+                                            } else if EPGManager.shared.sourceUpdateTimes[source.id] != nil {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.green)
+                                                Text("EPG Loaded")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                        .padding(.top, 2)
+                                    }
                                 }
                             }
                             
                             Spacer()
+                            
+                            // Refresh Button (always available)
+                            Button(action: {
+                                Task {
+                                    // Reload source content (channels/VODs)
+                                    await appState.loadSource(source)
+                                    
+                                    // Reload EPG if configured
+                                    if let epgUrl = source.epgUrl {
+                                        await EPGManager.shared.loadEPG(for: source.id, from: epgUrl)
+                                    }
+                                }
+                            }) {
+                                Image(systemName: "arrow.clockwise")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Refresh source content and EPG")
                             
                             // Status Icon
                             if !appState.loadingSources.contains(source.id) {
@@ -117,9 +233,15 @@ struct SourceSettingsView: View {
                             }
                         }
                         .contextMenu {
+                            Button("Edit") {
+                                editingSource = source
+                            }
                             Button("Delete", role: .destructive) {
                                 appState.removeSource(source)
                             }
+                        }
+                        .onTapGesture {
+                            editingSource = source
                         }
                     }
                     .onDelete { indexSet in
@@ -162,6 +284,10 @@ struct SourceSettingsView: View {
         .sheet(isPresented: $showingAddSource) {
             AddSourceView(appState: appState)
                 .frame(width: 400, height: 350)
+        }
+        .sheet(item: $editingSource) { source in
+            EditSourceView(appState: appState, source: source)
+                .frame(width: 400, height: 450)
         }
     }
 }

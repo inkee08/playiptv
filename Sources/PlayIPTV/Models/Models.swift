@@ -58,6 +58,10 @@ struct Source: Identifiable, Hashable, Codable {
     var xtreamUser: String?
     var xtreamPass: String?
     
+    // EPG
+    var epgUrl: String?
+    var epgRefreshInterval: String? // Stores EPGRefreshInterval rawValue
+    
     var url: URL? {
         if type == .m3u, let str = m3uUrl { return URL(string: str) }
         if type == .xtream, let str = xtreamUrl { return URL(string: str) }

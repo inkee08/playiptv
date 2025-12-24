@@ -68,11 +68,27 @@ struct ChannelGridView: View {
             }
             
             ForEach(appState.filteredChannels) { channel in
-                HStack {
-                    Image(systemName: "tv")
-                        .foregroundStyle(.secondary)
-                    Text(channel.name)
-                    Spacer()
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Image(systemName: "tv")
+                            .foregroundStyle(.secondary)
+                        Text(channel.name)
+                        Spacer()
+                    }
+                    
+                    // EPG Program info (Live TV only)
+                    if !channel.isSeries {
+                        let isLiveTV = channel.categoryId.lowercased().contains("live") || 
+                                       channel.groupTitle?.lowercased().contains("live") == true
+                        
+                        if isLiveTV, let program = EPGManager.shared.getCurrentProgram(for: channel.name, sourceId: channel.sourceId) {
+                            Text(program.title)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .padding(.leading, 24) // Align with channel name
+                        }
+                    }
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -163,6 +179,20 @@ struct ChannelCard: View {
                 .font(.caption)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
+            
+            // EPG Program info (Live TV only)
+            if !channel.isSeries {
+                let isLiveTV = channel.categoryId.lowercased().contains("live") || 
+                               channel.groupTitle?.lowercased().contains("live") == true
+                
+                if isLiveTV, let program = EPGManager.shared.getCurrentProgram(for: channel.name, sourceId: channel.sourceId) {
+                    Text(program.title)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .multilineTextAlignment(.center)
+                }
+            }
         }
         .padding()
         .background(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)

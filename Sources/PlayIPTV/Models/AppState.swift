@@ -96,6 +96,40 @@ class AppState {
         }
     }
     
+    // EPG support
+    var epgUrl: String? {
+        didSet {
+            if let url = epgUrl {
+                UserDefaults.standard.set(url, forKey: "epgUrl")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "epgUrl")
+            }
+        }
+    }
+    var lastEPGUpdate: Date?
+    
+    enum EPGRefreshInterval: String, CaseIterable, Codable, Identifiable {
+        case manual = "Manual"
+        case twelveHours = "Every 12 Hours"
+        case twentyFourHours = "Every 24 Hours"
+        
+        var id: String { rawValue }
+        
+        var seconds: TimeInterval? {
+            switch self {
+            case .manual: return nil
+            case .twelveHours: return 12 * 3600
+            case .twentyFourHours: return 24 * 3600
+            }
+        }
+    }
+    
+    var epgRefreshInterval: EPGRefreshInterval = .twentyFourHours {
+        didSet {
+            UserDefaults.standard.set(epgRefreshInterval.rawValue, forKey: "epgRefreshInterval")
+        }
+    }
+    
     // Settings Navigation
     enum SettingsTab: Hashable {
         case general
@@ -128,6 +162,15 @@ class AppState {
             self.sources = loadedSources
         }
         
+        // Load EPG URL
+        self.epgUrl = UserDefaults.standard.string(forKey: "epgUrl")
+        
+        // Load EPG refresh interval
+        if let savedInterval = UserDefaults.standard.string(forKey: "epgRefreshInterval"),
+           let interval = EPGRefreshInterval(rawValue: savedInterval) {
+            self.epgRefreshInterval = interval
+        }
+        
         #if DEBUG
         loadDebugSourceIfAvailable()
         #endif
@@ -146,6 +189,24 @@ class AppState {
                     await MainActor.run { selectedSource = first }
                 }
             }
+            
+            // Load global EPG if configured
+            if let epgUrl = epgUrl, !epgUrl.isEmpty {
+                await EPGManager.shared.loadGlobalEPG(from: epgUrl)
+                await MainActor.run {
+                    lastEPGUpdate = EPGManager.shared.lastUpdateTime
+                }
+            }
+            
+            // Load per-source EPG for each source
+            for source in sources {
+                if let sourceEpg = source.epgUrl, !sourceEpg.isEmpty {
+                    await EPGManager.shared.loadEPG(for: source.id, from: sourceEpg)
+                }
+            }
+            
+            // Set up EPG auto-refresh timer
+            setupEPGAutoRefresh()
         }
         
         // Listen for changes in RecentVODManager
@@ -212,6 +273,12 @@ class AppState {
             return
         }
         
+        // Load global EPG URL if present
+        if let globalEpg = json["globalEpgUrl"] as? String {
+            self.epgUrl = globalEpg
+            print("DEBUG: Loaded global EPG URL: \(globalEpg)")
+        }
+        
         print("DEBUG: Loading \(sourcesArray.count) debug source(s) from debug-config.json")
         
         var firstSource: Source?
@@ -239,7 +306,8 @@ class AppState {
                     m3uUrl: nil,
                     xtreamUrl: url,
                     xtreamUser: username,
-                    xtreamPass: password
+                    xtreamPass: password,
+                    epgUrl: sourceDict["epgUrl"]
                 )
             } else if typeString == "m3u" {
                 guard let m3uUrl = sourceDict["m3uUrl"] else {
@@ -253,7 +321,8 @@ class AppState {
                     m3uUrl: m3uUrl,
                     xtreamUrl: nil,
                     xtreamUser: nil,
-                    xtreamPass: nil
+                    xtreamPass: nil,
+                    epgUrl: sourceDict["epgUrl"]
                 )
             } else {
                 print("DEBUG: Unknown source type: \(typeString)")
@@ -778,6 +847,53 @@ class AppState {
             startPosition: startPosition,
             force: false
         )
+    }
+    
+    // MARK: - EPG Auto-Refresh
+    
+    private func setupEPGAutoRefresh() {
+        // Check every hour if EPG needs refreshing
+        Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.checkAndRefreshEPG()
+            }
+        }
+    }
+    
+    private func checkAndRefreshEPG() async {
+        let now = Date()
+        
+        // Check global EPG (uses global interval setting)
+        if let epgUrl = epgUrl, !epgUrl.isEmpty, let interval = epgRefreshInterval.seconds {
+            if let lastUpdate = lastEPGUpdate {
+                let timeSinceUpdate = now.timeIntervalSince(lastUpdate)
+                if timeSinceUpdate >= interval {
+                    print("DEBUG: EPG → Auto-refreshing global EPG")
+                    await EPGManager.shared.loadGlobalEPG(from: epgUrl)
+                    lastEPGUpdate = EPGManager.shared.lastUpdateTime
+                }
+            }
+        }
+        
+        // Check per-source EPG (uses per-source interval setting)
+        for source in sources {
+            if let sourceEpg = source.epgUrl, !sourceEpg.isEmpty {
+                // Get source-specific interval or default to 24 hours
+                let intervalString = source.epgRefreshInterval ?? EPGRefreshInterval.twentyFourHours.rawValue
+                guard let sourceInterval = EPGRefreshInterval(rawValue: intervalString),
+                      let seconds = sourceInterval.seconds else {
+                    continue // Skip if manual refresh
+                }
+                
+                if let lastUpdate = EPGManager.shared.sourceUpdateTimes[source.id] {
+                    let timeSinceUpdate = now.timeIntervalSince(lastUpdate)
+                    if timeSinceUpdate >= seconds {
+                        print("DEBUG: EPG → Auto-refreshing EPG for source \(source.name)")
+                        await EPGManager.shared.loadEPG(for: source.id, from: sourceEpg)
+                    }
+                }
+            }
+        }
     }
 
 }
