@@ -591,7 +591,20 @@ class AppState {
         if text.isEmpty {
             return channelsToFilter
         } else {
-            return channelsToFilter.filter { $0.name.localizedCaseInsensitiveContains(text) }
+            return channelsToFilter.filter { channel in
+                // 1. Check channel name
+                if channel.name.localizedCaseInsensitiveContains(text) {
+                    return true
+                }
+                
+                // 2. Check current program title from EPG
+                if let program = EPGManager.shared.getCurrentProgram(for: channel.name, sourceId: channel.sourceId),
+                   program.title.localizedCaseInsensitiveContains(text) {
+                    return true
+                }
+                
+                return false
+            }
         }
     }
     
