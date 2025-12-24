@@ -70,6 +70,8 @@ struct ContentView: View {
                     ContentUnavailableView("Select a Channel", systemImage: "tv", description: Text("Choose a channel from the list to start watching."))
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(nsColor: .textBackgroundColor))
             .toolbar {
                 ToolbarItemGroup(placement: .automatic) {
                     Spacer()
@@ -218,6 +220,8 @@ struct ContentView: View {
                 .padding(20)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .textBackgroundColor))
     }
     
     private func toggleSidebar() {

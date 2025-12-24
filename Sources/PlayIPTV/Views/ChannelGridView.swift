@@ -20,6 +20,11 @@ struct ChannelGridView: View {
         }
     }
     
+    private var contentBackgroundColor: Color {
+        // Lighter background for content areas (works in light and dark mode)
+        Color(nsColor: .textBackgroundColor)
+    }
+    
     var body: some View {
         Group {
             if appState.showingEpisodeList, let series = appState.episodeListSeries {
@@ -128,6 +133,7 @@ struct ChannelGridView: View {
                     }
                 }
             }
+            .background(contentBackgroundColor)
         }
     }
     
@@ -178,6 +184,7 @@ struct ChannelGridView: View {
                     }
                 }
             }
+            .background(contentBackgroundColor)
         }
     }
     

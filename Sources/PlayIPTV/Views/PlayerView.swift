@@ -18,6 +18,7 @@ class VLCViewContainer {
 
 struct PlayerView: View {
     @Environment(AppState.self) private var appState
+    @ObservedObject private var playerManager = PlayerManager.shared
     @State private var showControls = false
     var isFullscreen: Bool = false
     
@@ -25,7 +26,20 @@ struct PlayerView: View {
         ZStack {
             SingletonVLCView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black)
+                .background(Color(nsColor: .textBackgroundColor))
+            
+            // Loading Overlay
+            if playerManager.isLoading {
+                Color.black
+                    .overlay {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .controlSize(.large)
+                            .environment(\.colorScheme, .dark) // Forces white spinner
+                    }
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
             
             // Media controls overlay
             if showControls, let channel = appState.selectedChannel {
@@ -54,12 +68,16 @@ struct SingletonVLCView: NSViewRepresentable {
         print("DEBUG: VLC → Returning singleton video view")
         let containerView = NSView()
         containerView.wantsLayer = true
-        containerView.layer?.backgroundColor = NSColor.black.cgColor
+        containerView.layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
         
         let vlcView = VLCViewContainer.shared.videoView
         vlcView.frame = containerView.bounds
         vlcView.autoresizingMask = [.width, .height]
         containerView.addSubview(vlcView)
+        
+        // Also set background on the VLC view itself
+        vlcView.wantsLayer = true
+        vlcView.layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
         
         return containerView
     }

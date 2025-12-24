@@ -7,6 +7,7 @@ class PlayerManager: NSObject, ObservableObject {
     
     @Published private(set) var player = VLCMediaPlayer()
     @Published var isPlaying: Bool = false
+    @Published var isLoading: Bool = false
     
     private var currentUrl: URL?
     private var currentStreamId: String?
@@ -29,6 +30,9 @@ class PlayerManager: NSObject, ObservableObject {
         print("DEBUG: VLC → Loading \(url.lastPathComponent)")
         currentUrl = url
         currentStreamId = streamId
+        
+        // Explicitly start loading
+        isLoading = true
         
         let media = VLCMedia(url: url)
         player.media = media
@@ -56,6 +60,7 @@ class PlayerManager: NSObject, ObservableObject {
         currentUrl = nil
         currentStreamId = nil
         isPlaying = false
+        isLoading = false
     }
     
     private func startPositionTracking() {
@@ -140,6 +145,27 @@ extension PlayerManager: VLCMediaPlayerDelegate {
     nonisolated func mediaPlayerStateChanged(_ notification: Notification) {
         Task { @MainActor in
             isPlaying = player.isPlaying
+            
+            // Check loading state
+            print("DEBUG: VLC State Changed: \(player.state.rawValue)")
+            switch player.state {
+            case .opening, .buffering:
+                isLoading = true
+                print("DEBUG: Loading started")
+            default:
+                isLoading = false
+                print("DEBUG: Loading ended (State: \(player.state.rawValue))")
+            }
+        }
+    }
+    
+    nonisolated func mediaPlayerTimeChanged(_ notification: Notification) {
+        Task { @MainActor in
+            // If time is advancing, we are definitely playing -> hide loading
+            if isLoading {
+                print("DEBUG: Time changed, forcing loading end")
+                isLoading = false
+            }
         }
     }
 }
