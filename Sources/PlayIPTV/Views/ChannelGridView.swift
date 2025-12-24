@@ -120,6 +120,14 @@ struct ChannelGridView: View {
                     }
                 }
             }
+            .onAppear {
+                // When list view appears, scroll to selected channel
+                if let selectedId = appState.selectedChannel?.id {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        proxy.scrollTo(selectedId, anchor: .center)
+                    }
+                }
+            }
         }
     }
     
@@ -158,6 +166,14 @@ struct ChannelGridView: View {
                 // When search is cleared, scroll to selected channel instantly
                 if !oldValue.isEmpty && newValue.isEmpty {
                     if let selectedId = appState.selectedChannel?.id {
+                        proxy.scrollTo(selectedId, anchor: .center)
+                    }
+                }
+            }
+            .onAppear {
+                // When grid view appears, scroll to selected channel
+                if let selectedId = appState.selectedChannel?.id {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         proxy.scrollTo(selectedId, anchor: .center)
                     }
                 }
