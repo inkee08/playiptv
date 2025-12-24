@@ -43,6 +43,9 @@ struct PlayerView: View {
                 showControls.toggle()
             }
         }
+        .onChange(of: appState.playPauseSignal) { _, _ in
+            PlayerManager.shared.togglePlayPause()
+        }
     }
 }
 
