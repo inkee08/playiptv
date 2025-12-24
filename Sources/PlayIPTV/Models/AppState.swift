@@ -218,7 +218,11 @@ class AppState {
                 }
             }
             
-            // Set up EPG auto-refresh timer
+            // Force UI update immediately after loading EPG
+            await MainActor.run {
+                currentTick += 1
+            }
+            
             // Set up EPG auto-refresh timer
             setupEPGAutoRefresh()
             
