@@ -16,6 +16,10 @@ class AppState {
     // Track loading state per source
     var loadingSources: Set<UUID> = []
     
+    // UI ticker for periodic updates (e.g. EPG program boundaries)
+    // UI ticker for periodic updates (e.g. EPG program boundaries)
+    var currentTick: Int = 0
+    
     var selectedSource: Source? {
         didSet {
             // clear selection when switching sources
@@ -215,7 +219,11 @@ class AppState {
             }
             
             // Set up EPG auto-refresh timer
+            // Set up EPG auto-refresh timer
             setupEPGAutoRefresh()
+            
+            // Set up UI refresh timer (every minute) to update "Current Program" displays
+            setupUIRefreshTimer()
         }
         
         // Listen for changes in RecentVODManager
@@ -904,7 +912,7 @@ class AppState {
                 }
             }
         }
-        
+    
         // Check per-source EPG (uses per-source interval setting)
         for source in sources {
             if let sourceEpg = source.epgUrl, !sourceEpg.isEmpty {
@@ -922,6 +930,17 @@ class AppState {
                         await EPGManager.shared.loadEPG(for: source.id, from: sourceEpg)
                     }
                 }
+            }
+        }
+    }
+    
+    // MARK: - UI Auto-Refresh
+    
+    private func setupUIRefreshTimer() {
+        // Update UI every 30 seconds to reflect program changes
+        Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.currentTick += 1
             }
         }
     }

@@ -1,0 +1,3 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="test.channel.1" tvg-name="Test Channel Auto-Update" group-title="Test Group",Test Channel Auto-Update
+http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE tv SYSTEM "xmltv.dtd">
+<tv generator-info-name="TestGenerator">
+  <channel id="test.channel.1">
+    <display-name>Test Channel Auto-Update</display-name>
+  </channel>
+  
+  <programme start="20251224171740 +0000" stop="20251224174940 +0000" channel="test.channel.1">
+    <title lang="en">Test Show 1 (Ending in 2 min)</title>
+    <desc lang="en">This show should change automatically to Show 2 shortly.</desc>
+  </programme>
+  
+  <programme start="20251224174940 +0000" stop="20251224184940 +0000" channel="test.channel.1">
+    <title lang="en">Test Show 2 (Auto-Updated!)</title>
+    <desc lang="en">If you see this, the auto-refresh worked!</desc>
+  </programme>
+</tv>

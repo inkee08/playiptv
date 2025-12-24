@@ -26,6 +26,9 @@ struct ChannelGridView: View {
     }
     
     var body: some View {
+        // Force redraw on timer tick to update EPG
+        let _ = appState.currentTick
+        
         Group {
             if appState.showingEpisodeList, let series = appState.episodeListSeries {
                 EpisodeListView(

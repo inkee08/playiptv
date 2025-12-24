@@ -13,6 +13,12 @@
       "type": "m3u",
       "m3uUrl": "https://example.com/playlist.m3u",
       "epgUrl": "https://example.com/epg.xml"
+    },
+    {
+      "name": "Auto-Update Test Source",
+      "type": "m3u",
+      "m3uUrl": "file:///path/to/playiptv/test-playlist.m3u",
+      "epgUrl": "file:///path/to/playiptv/test-epg.xml"
     }
   ],
   "globalEpgUrl": "https://example.com/global-epg.xml"
