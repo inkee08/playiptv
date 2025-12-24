@@ -29,6 +29,14 @@ class AppState {
                 } else {
                     UserDefaults.standard.removeObject(forKey: "lastSourceId")
                 }
+                
+                // Auto-select first Live TV category for new source
+                if let source = selectedSource, let content = sourceContent[source.id] {
+                    if let liveCategory = content.categories.first(where: { $0.type == .live }) {
+                        selectedCategory = liveCategory
+                        print("DEBUG: Auto-selected Live TV category: \(liveCategory.name)")
+                    }
+                }
             }
         }
     }
@@ -633,6 +641,14 @@ class AppState {
             sourceContent[source.id] = newContent
             loadingSources.remove(source.id)
             print("DEBUG: Loaded \(newContent.channels.count) channels for \(source.name)")
+            
+            // Set default selected category to first Live TV category if none selected
+            if selectedCategory == nil {
+                if let liveCategory = newContent.categories.first(where: { $0.type == .live }) {
+                    selectedCategory = liveCategory
+                    print("DEBUG: Set default category to: \(liveCategory.name)")
+                }
+            }
         }
     }
     
