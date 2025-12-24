@@ -20,7 +20,6 @@ struct ContentView: View {
                 mainContent
             }
         }
-        .toolbar(isFullscreen ? .hidden : .visible, for: .windowToolbar)
         .handleWindowFullscreen(isFullscreen: $isFullscreen)
         .sheet(isPresented: $appState.showVODDialog) {
             if let channel = appState.vodDialogChannel {
@@ -76,37 +75,7 @@ struct ContentView: View {
                 ToolbarItemGroup(placement: .automatic) {
                     Spacer()
                     
-                    // Source Picker
-                    Menu {
-                        Picker("Source", selection: Binding(
-                            get: { appState.selectedSource },
-                            set: { appState.selectedSource = $0 }
-                        )) {
-                            ForEach(appState.sources) { source in
-                                Text(source.name).tag(Optional(source))
-                            }
-                        }
-                        .pickerStyle(.inline)
-                        
-                        Divider()
-                        
-                        Button("Manage Sources...") {
-                            appState.settingsTab = .sources
-                            openSettings()
-                        }
-                    } label: {
-                        Text("\(appState.selectedSource?.name ?? "Select Source") ")
-                            .fontWeight(.medium)
-                        + Text(Image(systemName: "chevron.down"))
-                            .font(.system(size: 10, weight: .light))
-                            .foregroundStyle(.secondary)
-                    }
-                    .background(
-                        Capsule()
-                            .fill(Color.white.opacity(0.4))
-                    )
-                    .menuIndicator(.hidden)
-                    .fixedSize()
+                    sourcePickerMenu
                     
                     // View Mode
                     Picker("View Mode", selection: $isListView) {
@@ -191,6 +160,18 @@ struct ContentView: View {
             .padding(.top, 20)
         }
         .ignoresSafeArea(edges: [.bottom, .leading, .trailing])
+        .toolbar {
+            ToolbarItemGroup(placement: .automatic) {
+                Spacer()
+                sourcePickerMenu
+                
+                Button(action: {
+                    openSettings()
+                }) {
+                    Label("Settings", systemImage: "gear")
+                }
+            }
+        }
     }
     
     private func playerDetailView(channel: Channel) -> some View {
@@ -236,6 +217,35 @@ struct ContentView: View {
     
     private func toggleSidebar() {
         NSApp.keyWindow?.firstResponder?.tryToPerform(#selector(NSSplitViewController.toggleSidebar(_:)), with: nil)
+    }
+
+    private var sourcePickerMenu: some View {
+        Menu {
+            Picker("Source", selection: Binding(
+                get: { appState.selectedSource },
+                set: { appState.selectedSource = $0 }
+            )) {
+                ForEach(appState.sources) { source in
+                    Text(source.name).tag(Optional(source))
+                }
+            }
+            .pickerStyle(.inline)
+            
+            Divider()
+            
+            Button("Manage Sources...") {
+                appState.settingsTab = .sources
+                openSettings()
+            }
+        } label: {
+            Text("\(appState.selectedSource?.name ?? "Select Source") ")
+                .fontWeight(.medium)
+            + Text(Image(systemName: "chevron.down"))
+                .font(.system(size: 10, weight: .light))
+                .foregroundStyle(.secondary)
+        }
+        .menuIndicator(.hidden)
+        .fixedSize()
     }
 }
 
