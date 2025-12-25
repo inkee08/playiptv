@@ -101,6 +101,7 @@ struct MediaControlsView: View {
     @State private var currentTimeDisplay: Double = 0
     @State private var pendingAudioIndex: Int32? = nil
     @State private var pendingSubtitleIndex: Int32? = nil
+    @State private var volumeBeforeMute: Double = 100
     
     private var isLiveTV: Bool {
         // Live TV is anything that's not a series (movies and live TV don't have skip/restart)
@@ -394,13 +395,33 @@ struct MediaControlsView: View {
                 
                 // Volume control on the right
                 HStack(spacing: 8) {
-                    Image(systemName: volume == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                        .foregroundColor(.white)
+                    Button(action: {
+                        if volume == 0 {
+                            // Unmute - restore previous volume
+                            volume = volumeBeforeMute
+                            playerManager.setVolume(Int32(volumeBeforeMute))
+                        } else {
+                            // Mute - save current volume and set to 0
+                            volumeBeforeMute = volume
+                            volume = 0
+                            playerManager.setVolume(0)
+                        }
+                    }) {
+                        Image(systemName: volume == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                            .foregroundColor(.white)
+                            .frame(width: 20, alignment: .center)
+                    }
+                    .buttonStyle(.plain)
+                    .help(volume == 0 ? "Unmute" : "Mute")
                     
                     Slider(value: $volume, in: 0...100)
                         .frame(width: 100)
                         .onChange(of: volume) { _, newValue in
                             playerManager.setVolume(Int32(newValue))
+                            // Update volumeBeforeMute if user manually changes volume (not muting)
+                            if newValue > 0 {
+                                volumeBeforeMute = newValue
+                            }
                         }
                 }
                 
