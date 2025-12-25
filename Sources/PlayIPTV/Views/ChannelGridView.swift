@@ -26,6 +26,11 @@ struct ChannelGridView: View {
         Color(nsColor: .textBackgroundColor)
     }
     
+    // Create a scroll view ID based on category to maintain scroll position within a category
+    private var scrollViewId: String {
+        appState.selectedCategory?.id ?? "none"
+    }
+    
     var body: some View {
         Group {
             if appState.showingEpisodeList, let series = appState.episodeListSeries {
@@ -113,6 +118,16 @@ struct ChannelGridView: View {
                     }
                 }
             }
+            .id(scrollViewId)  // Reset scroll for categories without selected channel
+            .onChange(of: appState.selectedCategory?.id) { oldValue, newValue in
+                // When switching categories, scroll to selected channel if it's in this category
+                if let selectedChannel = appState.selectedChannel,
+                   appState.filteredChannels.contains(where: { $0.id == selectedChannel.id }) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        proxy.scrollTo(selectedChannel.id, anchor: .center)
+                    }
+                }
+            }
             .onChange(of: appState.channelSearchText) { oldValue, newValue in
                 // When search is cleared, scroll to selected channel instantly
                 if !oldValue.isEmpty && newValue.isEmpty {
@@ -162,6 +177,16 @@ struct ChannelGridView: View {
                         }
                     }
                     .padding()
+                }
+            }
+            .id(scrollViewId)  // Reset scroll for categories without selected channel
+            .onChange(of: appState.selectedCategory?.id) { oldValue, newValue in
+                // When switching categories, scroll to selected channel if it's in this category
+                if let selectedChannel = appState.selectedChannel,
+                   appState.filteredChannels.contains(where: { $0.id == selectedChannel.id }) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        proxy.scrollTo(selectedChannel.id, anchor: .center)
+                    }
                 }
             }
             .onChange(of: appState.channelSearchText) { oldValue, newValue in
