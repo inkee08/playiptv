@@ -17,37 +17,8 @@ struct FullscreenChannelBrowserView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Search Bar & Source Picker (Top Right)
+            // Search Bar (Top Right)
             HStack {
-                // Source Picker
-                Menu {
-                    Picker("Source", selection: Binding(
-                        get: { appState.selectedSource },
-                        set: { appState.selectedSource = $0 }
-                    )) {
-                        ForEach(appState.sources) { source in
-                            Text(source.name).tag(Optional(source))
-                        }
-                    }
-                    .pickerStyle(.inline)
-                    
-                    Divider()
-                    
-                    Button("Manage Sources...") {
-                        appState.settingsTab = .sources
-                        openSettings()
-                    }
-                } label: {
-                    Text("\(appState.selectedSource?.name ?? "Select Source") ")
-                        .fontWeight(.medium)
-                        .foregroundStyle(.primary)
-                    + Text(Image(systemName: "chevron.down"))
-                        .font(.system(size: 10, weight: .light))
-                        .foregroundStyle(.secondary)
-                }
-                .menuIndicator(.hidden)
-                .fixedSize()
-                
                 Spacer()
                 
                 HStack(spacing: 8) {
