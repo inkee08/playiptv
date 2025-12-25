@@ -99,6 +99,8 @@ struct MediaControlsView: View {
     @State private var isScrubbing: Bool = false
     @State private var scrubbingPosition: Double = 0
     @State private var currentTimeDisplay: Double = 0
+    @State private var pendingAudioIndex: Int32? = nil
+    @State private var pendingSubtitleIndex: Int32? = nil
     
     private var isLiveTV: Bool {
         // Live TV is anything that's not a series (movies and live TV don't have skip/restart)
@@ -284,17 +286,33 @@ struct MediaControlsView: View {
                 HStack(spacing: 12) {
                     // Audio tracks - show if available
                     Menu {
-                        if let audioTracks = playerManager.player.audioTrackNames as? [String] {
-                            ForEach(Array(audioTracks.enumerated()), id: \.offset) { index, track in
+                        if let audioTracks = playerManager.player.audioTrackNames as? [String],
+                           let audioIndexes = playerManager.player.audioTrackIndexes as? [Int32] {
+                            let _ = print("DEBUG: Audio Menu - Current VLC index: \(playerManager.player.currentAudioTrackIndex), Available indexes: \(audioIndexes)")
+                            // Skip the first track only if it's "Disable" (VLC's built-in disable option at index 0)
+                            let startIndex = (audioTracks.first?.lowercased() == "disable") ? 1 : 0
+                            
+                            ForEach(startIndex..<audioTracks.count, id: \.self) { index in
                                 Button(action: {
-                                    playerManager.selectAudioTrack(index: index)
+                                    if index < audioIndexes.count {
+                                        pendingAudioIndex = audioIndexes[index]
+                                        playerManager.selectAudioTrack(index: index)
+                                        // Clear pending after delay to allow VLC to catch up
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                            pendingAudioIndex = nil
+                                        }
+                                    }
                                 }) {
                                     HStack {
-                                        Text(track)
+                                        Text(audioTracks[index])
                                         Spacer()
-                                        if playerManager.player.currentAudioTrackIndex == Int32(index) {
+                                        // Compare against the actual VLC index or pending selection
+                                        let vlcIndex = index < audioIndexes.count ? audioIndexes[index] : -999
+                                        let isSelected = (pendingAudioIndex == vlcIndex) || (playerManager.player.currentAudioTrackIndex == vlcIndex)
+                                        if isSelected {
                                             Image(systemName: "checkmark")
                                         }
+                                        let _ = print("DEBUG: Audio track[\(index)] '\(audioTracks[index])' - VLC idx: \(vlcIndex), Selected: \(isSelected)")
                                     }
                                 }
                             }
@@ -315,25 +333,45 @@ struct MediaControlsView: View {
                     // Subtitle tracks - show if available
                     Menu {
                         Button(action: {
+                            pendingSubtitleIndex = -1
                             playerManager.selectSubtitleTrack(index: -1)
+                            // Clear pending after delay
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                pendingSubtitleIndex = nil
+                            }
                         }) {
                             HStack {
                                 Text("Off")
                                 Spacer()
-                                if playerManager.player.currentVideoSubTitleIndex == -1 {
+                                let isOff = (pendingSubtitleIndex == -1) || (playerManager.player.currentVideoSubTitleIndex == -1)
+                                if isOff {
                                     Image(systemName: "checkmark")
                                 }
                             }
                         }
-                        if let subtitleTracks = playerManager.player.videoSubTitlesNames as? [String] {
-                            ForEach(Array(subtitleTracks.enumerated()), id: \.offset) { index, track in
+                        if let subtitleTracks = playerManager.player.videoSubTitlesNames as? [String],
+                           let subtitleIndexes = playerManager.player.videoSubTitlesIndexes as? [Int32] {
+                            // Skip the first track only if it's "Disable" (VLC's built-in off option at index 0)
+                            let startIndex = (subtitleTracks.first?.lowercased() == "disable") ? 1 : 0
+                            
+                            ForEach(startIndex..<subtitleTracks.count, id: \.self) { index in
                                 Button(action: {
-                                    playerManager.selectSubtitleTrack(index: index)
+                                    if index < subtitleIndexes.count {
+                                        pendingSubtitleIndex = subtitleIndexes[index]
+                                        playerManager.selectSubtitleTrack(index: index)
+                                        // Clear pending after delay
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                            pendingSubtitleIndex = nil
+                                        }
+                                    }
                                 }) {
                                     HStack {
-                                        Text(track)
+                                        Text(subtitleTracks[index])
                                         Spacer()
-                                        if playerManager.player.currentVideoSubTitleIndex == Int32(index) {
+                                        // Compare against the actual VLC index or pending selection
+                                        let vlcIndex = index < subtitleIndexes.count ? subtitleIndexes[index] : -999
+                                        let isSelected = (pendingSubtitleIndex == vlcIndex) || (playerManager.player.currentVideoSubTitleIndex == vlcIndex)
+                                        if isSelected {
                                             Image(systemName: "checkmark")
                                         }
                                     }

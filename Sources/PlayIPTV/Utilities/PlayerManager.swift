@@ -126,8 +126,10 @@ class PlayerManager: NSObject, ObservableObject {
         // VLC uses indexes from audioTrackIndexes array
         if let indexes = player.audioTrackIndexes as? [Int32],
            index >= 0 && index < indexes.count {
-            player.currentAudioTrackIndex = indexes[index]
-            print("DEBUG: Selected audio track index: \(indexes[index])")
+            let vlcIndex = indexes[index]
+            player.currentAudioTrackIndex = vlcIndex
+            print("DEBUG: Audio - Array index: \(index), VLC index: \(vlcIndex), Current: \(player.currentAudioTrackIndex)")
+            print("DEBUG: Audio - All VLC indexes: \(indexes)")
         }
     }
     
@@ -135,11 +137,13 @@ class PlayerManager: NSObject, ObservableObject {
         if index == -1 {
             // Disable subtitles
             player.currentVideoSubTitleIndex = -1
-            print("DEBUG: Disabled subtitles")
+            print("DEBUG: Subtitle - Disabled (set to -1)")
         } else if let indexes = player.videoSubTitlesIndexes as? [Int32],
                   index >= 0 && index < indexes.count {
-            player.currentVideoSubTitleIndex = indexes[index]
-            print("DEBUG: Selected subtitle track index: \(indexes[index])")
+            let vlcIndex = indexes[index]
+            player.currentVideoSubTitleIndex = vlcIndex
+            print("DEBUG: Subtitle - Array index: \(index), VLC index: \(vlcIndex), Current: \(player.currentVideoSubTitleIndex)")
+            print("DEBUG: Subtitle - All VLC indexes: \(indexes)")
         }
     }
 }
