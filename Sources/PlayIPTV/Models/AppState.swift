@@ -250,9 +250,12 @@ class AppState {
                 }
             }
             
+            
             // Force UI update immediately after loading EPG
             await MainActor.run {
                 currentTick += 1
+                updateEPGCache()  // Populate cache with new EPG data
+                updateFilteredChannels()  // Refresh channel list with new EPG data
             }
             
             // Set up EPG auto-refresh timer
@@ -685,6 +688,11 @@ class AppState {
                 return false
             }
         }
+        
+        // Force SwiftUI to detect the change by temporarily clearing and reassigning
+        let result = filteredChannels
+        filteredChannels = []
+        filteredChannels = result
     }
     
     var isLoading: Bool = false
@@ -867,9 +875,12 @@ class AppState {
             if let sourceEpg = source.epgUrl, !sourceEpg.isEmpty {
                 await EPGManager.shared.loadEPG(for: source.id, from: sourceEpg)
                 
+                
                 // Update EPG cache and UI
                 await MainActor.run {
                     currentTick += 1
+                    updateEPGCache()  // Populate cache with new EPG data
+                    updateFilteredChannels()  // Refresh channel list with new EPG data
                 }
             }
             
