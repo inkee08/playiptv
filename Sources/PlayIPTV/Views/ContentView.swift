@@ -6,7 +6,8 @@ struct ContentView: View {
     @Environment(\.openSettings) private var openSettings
     
     @FocusState private var isPlayerFocused: Bool
-    @State private var isFullscreen: Bool = false
+    @State private var isWindowFullscreen: Bool = false  // Tracks macOS window fullscreen
+    @State private var isVideoFullscreen: Bool = false   // Tracks immersive video fullscreen
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var detachedColumnVisibility = NavigationSplitViewVisibility.all
     @State private var isListView: Bool = true
@@ -20,7 +21,27 @@ struct ContentView: View {
                 mainContent
             }
         }
-        .handleWindowFullscreen(isFullscreen: $isFullscreen)
+        .handleWindowFullscreen(isFullscreen: $isWindowFullscreen)
+        .onChange(of: isVideoFullscreen) { _, newValue in
+            // When video fullscreen is toggled, sync window fullscreen
+            if newValue != isWindowFullscreen {
+                NSApp.keyWindow?.toggleFullScreen(nil)
+            }
+            // Hide channel browser when entering video fullscreen
+            if newValue {
+                appState.isChannelBrowserVisible = false
+            }
+        }
+        .onChange(of: isWindowFullscreen) { _, newValue in
+            // When window exits fullscreen (green button), exit video fullscreen too
+            if !newValue && isVideoFullscreen {
+                isVideoFullscreen = false
+            }
+        }
+        .onKeyPress(.init("f")) {
+            isVideoFullscreen.toggle()
+            return .handled
+        }
         .sheet(isPresented: $appState.showVODDialog) {
             if let channel = appState.vodDialogChannel {
                 VODPlaybackDialog(
@@ -42,7 +63,7 @@ struct ContentView: View {
     
     @ViewBuilder
     private var mainContent: some View {
-        if isFullscreen, let channel = appState.selectedChannel {
+        if isVideoFullscreen, let channel = appState.selectedChannel {
             fullscreenPlayer(channel: channel)
         } else {
             attachedSplitView
@@ -51,7 +72,7 @@ struct ContentView: View {
     
     // Stable player view that persists across mode changes
     private var playerView: some View {
-        PlayerView(isFullscreen: isFullscreen)
+        PlayerView(isFullscreen: isVideoFullscreen)
             .id("stable-player-view") // Prevent recreation
             .focused($isPlayerFocused)
     }
@@ -160,18 +181,6 @@ struct ContentView: View {
             .padding(.top, 20)
         }
         .ignoresSafeArea(edges: [.bottom, .leading, .trailing])
-        .toolbar {
-            ToolbarItemGroup(placement: .automatic) {
-                Spacer()
-                sourcePickerMenu
-                
-                Button(action: {
-                    openSettings()
-                }) {
-                    Label("Settings", systemImage: "gear")
-                }
-            }
-        }
     }
     
     private func playerDetailView(channel: Channel) -> some View {
@@ -181,11 +190,11 @@ struct ContentView: View {
                     isPlayerFocused = true
                 }
             
-            // Overlay buttons (hidden in fullscreen)
-            if !isFullscreen {
+            // Overlay buttons (hidden in video fullscreen)
+            if !isVideoFullscreen {
                 HStack(spacing: 15) {
                     Button(action: {
-                        NSApp.keyWindow?.toggleFullScreen(nil)
+                        isVideoFullscreen.toggle()
                     }) {
                         Image(systemName: "arrow.up.left.and.arrow.down.right")
                             .font(.system(size: 20))
