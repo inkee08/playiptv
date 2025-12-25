@@ -8,11 +8,13 @@ class PlayerManager: NSObject, ObservableObject {
     @Published private(set) var player = VLCMediaPlayer()
     @Published var isPlaying: Bool = false
     @Published var isLoading: Bool = false
+    @Published var hasError: Bool = false
     
     private var currentUrl: URL?
     private var currentStreamId: String?
     private var positionSaveTimer: Timer?
     private var debounceTask: Task<Void, Never>?
+    private var timeoutTask: Task<Void, Never>?
     private var shouldDisableSubtitles: Bool = false
     
     override init() {
@@ -35,6 +37,20 @@ class PlayerManager: NSObject, ObservableObject {
         
         // Explicitly start loading
         isLoading = true
+        hasError = false
+        
+        // Cancel any existing timeout
+        timeoutTask?.cancel()
+        
+        // Set a timeout for loading (10 seconds)
+        timeoutTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
+            if !Task.isCancelled && isLoading {
+                print("DEBUG: VLC → Timeout - Stream failed to load within 10 seconds")
+                isLoading = false
+                hasError = true
+            }
+        }
         
         let media = VLCMedia(url: url)
         player.media = media
@@ -230,8 +246,31 @@ extension PlayerManager: VLCMediaPlayerDelegate {
                 
                 if !isLoading {
                     isLoading = true
+                    hasError = false // Clear any previous errors
                     print("DEBUG: Loading started")
                 }
+                
+            case .error:
+                // Stream encountered an error
+                timeoutTask?.cancel() // Cancel timeout
+                isLoading = false
+                hasError = true
+                print("DEBUG: VLC Error - Stream failed to load")
+                
+            case .stopped:
+                // If we were loading and now stopped, it's an error
+                timeoutTask?.cancel() // Cancel timeout
+                if isLoading {
+                    isLoading = false
+                    hasError = true
+                    print("DEBUG: VLC Stopped - Stream failed to load (went from buffering to stopped)")
+                }
+                
+            case .playing:
+                // Successfully playing
+                timeoutTask?.cancel() // Cancel timeout
+                isLoading = false
+                hasError = false
                 
             default:
                 // Debounce stop (wait 0.5s) to prevent flickering on retry loops

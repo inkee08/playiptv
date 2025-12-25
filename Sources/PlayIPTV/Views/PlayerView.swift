@@ -41,6 +41,46 @@ struct PlayerView: View {
                     .zIndex(1)
             }
             
+            // Error Overlay
+            if playerManager.hasError {
+                Color.black.opacity(0.9)
+                    .overlay {
+                        VStack(spacing: 20) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 60))
+                                .foregroundColor(.yellow)
+                            
+                            Text("Stream Unavailable")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                            
+                            Text("Unable to load the video stream.\nThe source may be offline or invalid.")
+                                .font(.body)
+                                .foregroundColor(.white.opacity(0.8))
+                                .multilineTextAlignment(.center)
+                            
+                            HStack(spacing: 15) {
+                                Button("Retry") {
+                                    if let url = playerManager.player.media?.url {
+                                        playerManager.play(url: url, force: true)
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                
+                                Button("Close") {
+                                    appState.selectedChannel = nil
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            .padding(.top, 10)
+                        }
+                        .padding(40)
+                    }
+                    .transition(.opacity)
+                    .zIndex(2)
+            }
+            
             // Media controls overlay
             if showControls, let channel = appState.selectedChannel {
                 MediaControlsView(channel: channel, isFullscreen: isFullscreen)
@@ -289,7 +329,6 @@ struct MediaControlsView: View {
                     Menu {
                         if let audioTracks = playerManager.player.audioTrackNames as? [String],
                            let audioIndexes = playerManager.player.audioTrackIndexes as? [Int32] {
-                            let _ = print("DEBUG: Audio Menu - Current VLC index: \(playerManager.player.currentAudioTrackIndex), Available indexes: \(audioIndexes)")
                             // Skip the first track only if it's "Disable" (VLC's built-in disable option at index 0)
                             let startIndex = (audioTracks.first?.lowercased() == "disable") ? 1 : 0
                             
