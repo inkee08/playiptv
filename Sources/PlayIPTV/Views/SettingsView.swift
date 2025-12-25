@@ -283,11 +283,9 @@ struct SourceSettingsView: View {
         }
         .sheet(isPresented: $showingAddSource) {
             AddSourceView(appState: appState)
-                .frame(width: 400, height: 350)
         }
         .sheet(item: $editingSource) { source in
             EditSourceView(appState: appState, source: source)
-                .frame(width: 400, height: 450)
         }
     }
 }
@@ -302,6 +300,8 @@ struct AddSourceView: View {
     @State private var xtreamUrl: String = ""
     @State private var xtreamUsername: String = ""
     @State private var xtreamPassword: String = ""
+    @State private var epgUrl: String = ""
+    @State private var epgRefreshInterval: String = AppState.EPGRefreshInterval.twentyFourHours.rawValue
     @FocusState private var isNameFieldFocused: Bool
     @State private var validationError: String?
     
@@ -350,6 +350,32 @@ struct AddSourceView: View {
                 }
             }
             
+            Divider()
+                .padding(.vertical, 5)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("EPG URL (XMLTV)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                TextField("Optional - Falls back to global EPG", text: $epgUrl)
+                Text("Leave empty to use global EPG from General settings")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("EPG Auto-Refresh")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Picker("", selection: $epgRefreshInterval) {
+                    ForEach(AppState.EPGRefreshInterval.allCases) { interval in
+                        Text(interval.rawValue).tag(interval.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+            
             if let error = validationError {
                 Text(error)
                     .foregroundColor(.red)
@@ -374,8 +400,9 @@ struct AddSourceView: View {
                 .disabled(name.isEmpty)
             }
         }
-        .padding(12)
-        .frame(width: 400, height: sourceType == .m3u ? 200 : 310)
+        .padding(20)
+        .frame(minWidth: 400, maxWidth: 500)
+        .fixedSize()
         .onAppear {
             isNameFieldFocused = true
         }
@@ -406,7 +433,9 @@ struct AddSourceView: View {
             let source = Source(
                 name: name.trimmingCharacters(in: .whitespaces),
                 type: .m3u,
-                m3uUrl: m3uUrl.trimmingCharacters(in: .whitespaces)
+                m3uUrl: m3uUrl.trimmingCharacters(in: .whitespaces),
+                epgUrl: epgUrl.isEmpty ? nil : epgUrl.trimmingCharacters(in: .whitespaces),
+                epgRefreshInterval: epgRefreshInterval
             )
             appState.addSource(source)
         } else {
@@ -437,7 +466,9 @@ struct AddSourceView: View {
                 type: .xtream,
                 xtreamUrl: xtreamUrl.trimmingCharacters(in: .whitespaces),
                 xtreamUser: xtreamUsername.trimmingCharacters(in: .whitespaces),
-                xtreamPass: xtreamPassword
+                xtreamPass: xtreamPassword,
+                epgUrl: epgUrl.isEmpty ? nil : epgUrl.trimmingCharacters(in: .whitespaces),
+                epgRefreshInterval: epgRefreshInterval
             )
             appState.addSource(source)
         }

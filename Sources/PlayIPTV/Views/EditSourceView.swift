@@ -117,7 +117,9 @@ struct EditSourceView: View {
                 .disabled(name.isEmpty)
             }
         }
-        .padding(12)
+        .padding(20)
+        .frame(minWidth: 400, maxWidth: 500)
+        .fixedSize()
     }
     
     private func saveChanges() -> Bool {
