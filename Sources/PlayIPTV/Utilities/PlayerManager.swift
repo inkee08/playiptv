@@ -298,6 +298,7 @@ extension PlayerManager: VLCMediaPlayerDelegate {
             // If time is advancing, we are definitely playing -> hide loading
             if isLoading {
                 print("DEBUG: Time changed, forcing loading end")
+                debounceTask?.cancel()  // Cancel pending debounced loading end
                 isLoading = false
             }
         }
