@@ -104,7 +104,6 @@ struct EpisodeListView: View {
         appState.currentEpisode = episode
         
         // Track in recent VOD
-        // Track in recent VOD
         if let source = appState.sources.first(where: { $0.id == series.sourceId }),
            let sourceUrlString = source.url?.absoluteString {
             RecentVODManager.shared.addRecentVOD(
@@ -127,7 +126,18 @@ struct EpisodeListView: View {
             isSeries: false
         )
         
-        appState.selectChannel(episodeChannel)
+        // Check for saved position and show resume dialog if available
+        let savedPosition = PlaybackPositionManager.shared.getPosition(streamId: episode.id)
+        
+        if let position = savedPosition, position > 5 {
+            // Show VOD dialog with resume option
+            appState.vodDialogChannel = episodeChannel
+            appState.vodDialogSavedPosition = position
+            appState.showVODDialog = true
+        } else {
+            // Play directly from start
+            appState.selectChannel(episodeChannel)
+        }
     }
 }
 
