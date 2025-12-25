@@ -22,30 +22,23 @@ struct ContentView: View {
             }
         }
         .handleWindowFullscreen(isFullscreen: $isWindowFullscreen)
-        .onChange(of: isVideoFullscreen) { _, newValue in
-            // When video fullscreen is toggled, sync window fullscreen
-            if newValue != isWindowFullscreen {
-                NSApp.keyWindow?.toggleFullScreen(nil)
-            }
-            // Hide channel browser when entering video fullscreen
+        .onChange(of: isWindowFullscreen) { _, newValue in
+            // Sync video fullscreen state with window fullscreen state
+            isVideoFullscreen = newValue
+            
+            // Hide channel browser when entering fullscreen
             if newValue {
                 appState.isChannelBrowserVisible = false
-            }
-        }
-        .onChange(of: isWindowFullscreen) { _, newValue in
-            // When window exits fullscreen (green button), exit video fullscreen too
-            if !newValue && isVideoFullscreen {
-                isVideoFullscreen = false
             }
         }
         .onChange(of: appState.playPauseSignal) { _, _ in
             PlayerManager.shared.togglePlayPause()
         }
         .onChange(of: appState.fullscreenToggleSignal) { _, _ in
-            isVideoFullscreen.toggle()
+            NSApp.keyWindow?.toggleFullScreen(nil)
         }
         .onKeyPress(.init("f")) {
-            isVideoFullscreen.toggle()
+            NSApp.keyWindow?.toggleFullScreen(nil)
             return .handled
         }
         .sheet(isPresented: $appState.showVODDialog) {
@@ -159,8 +152,6 @@ struct ContentView: View {
                 playerView
                     .onAppear {
                         isPlayerFocused = true
-                        // Initialize browser visibility - start hidden
-                        appState.isChannelBrowserVisible = false
                     }
             }
             
