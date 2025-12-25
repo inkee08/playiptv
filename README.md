@@ -28,9 +28,9 @@
 ## 📦 Installation
 Download the latest version from the **[Releases](../../releases)** page.
 
-1.  Download the `.zip` file for your architecture (`arm64` for Apple Silicon).
-2.  Unzip the file.
-3.  Drag **PlayIPTV** to your `Applications` folder.
+1.  Download the `.dmg` file for your architecture (`arm64` for Apple Silicon)
+2.  Open the DMG file
+3.  Drag **PlayIPTV** to the **Applications** folder shortcut
 
 > **Note:** This app is ad-hoc signed. You may need to right-click and select "Open" the first time you run it.
 

@@ -121,17 +121,122 @@ EOF
     echo "🔐 Ad-hoc code signing..."
     codesign --force --deep --sign - "$APP_BUNDLE"
 
-    # Zip
+    # Create DMG instead of ZIP
     if [ "$BUILD_TYPE" == "release" ]; then
-        ZIP_NAME="${APP_NAME}_v${VERSION}_${ARCH}.zip"
+        DMG_NAME="${APP_NAME}_v${VERSION}_${ARCH}.dmg"
     else
         # Version already contains "test" (e.g. 0.0.0-test.TIMESTAMP)
-        ZIP_NAME="${APP_NAME}_${VERSION}_${ARCH}.zip"
+        DMG_NAME="${APP_NAME}_${VERSION}_${ARCH}.dmg"
     fi
-
-    echo "📦 Zipping into $ZIP_NAME..."
-    rm -f "$RELEASE_DIR/$ZIP_NAME"
-    (cd "$RELEASE_DIR" && zip -r -q "$ZIP_NAME" "$APP_NAME.app")
+    
+    echo "📦 Creating DMG installer: $DMG_NAME..."
+    
+    # Create temporary directory for DMG contents
+    DMG_TEMP="$RELEASE_DIR/dmg_temp"
+    rm -rf "$DMG_TEMP"
+    mkdir -p "$DMG_TEMP"
+    
+    # Copy app to temp directory
+    cp -R "$APP_BUNDLE" "$DMG_TEMP/"
+    
+    # Create Applications symlink
+    ln -s /Applications "$DMG_TEMP/Applications"
+    
+    # Create temporary DMG for styling
+    TEMP_DMG="$RELEASE_DIR/temp.dmg"
+    rm -f "$TEMP_DMG"
+    
+    # Create writable DMG
+    hdiutil create -volname "$APP_NAME" \
+        -srcfolder "$DMG_TEMP" \
+        -ov -format UDRW \
+        -fs HFS+ \
+        -size 200m \
+        "$TEMP_DMG"
+    
+    # Mount the DMG
+    MOUNT_DIR="/Volumes/$APP_NAME"
+    
+    # Clean up any existing mount first
+    if [ -d "$MOUNT_DIR" ]; then
+        echo "🧹 Cleaning up existing mount..."
+        hdiutil detach "$MOUNT_DIR" -force 2>/dev/null || true
+        sleep 1
+    fi
+    
+    echo "📂 Mounting DMG..."
+    MOUNT_OUTPUT=$(hdiutil attach "$TEMP_DMG" -mountpoint "$MOUNT_DIR" -nobrowse)
+    DEVICE=$(echo "$MOUNT_OUTPUT" | grep "/dev/disk" | head -1 | awk '{print $1}')
+    
+    echo "   Mounted at: $MOUNT_DIR (device: $DEVICE)"
+    
+    # Wait for mount
+    sleep 2
+    
+    # Use AppleScript to style the DMG window
+    echo "🎨 Styling DMG window..."
+    osascript <<EOF
+tell application "Finder"
+    tell disk "$APP_NAME"
+        open
+        set current view of container window to icon view
+        set toolbar visible of container window to false
+        set statusbar visible of container window to false
+        set the bounds of container window to {100, 100, 700, 500}
+        set viewOptions to the icon view options of container window
+        set arrangement of viewOptions to not arranged
+        set icon size of viewOptions to 128
+        
+        -- Position app icon on the left
+        set position of item "$APP_NAME.app" of container window to {150, 200}
+        
+        -- Position Applications symlink on the right
+        set position of item "Applications" of container window to {450, 200}
+        
+        update without registering applications
+        delay 2
+    end tell
+    
+    -- Close all Finder windows
+    close every window
+end tell
+EOF
+    
+    # Give Finder time to close
+    sleep 3
+    
+    # Unmount the DMG using the device path
+    echo "📤 Unmounting DMG..."
+    UNMOUNT_ATTEMPTS=0
+    MAX_ATTEMPTS=5
+    
+    while [ $UNMOUNT_ATTEMPTS -lt $MAX_ATTEMPTS ]; do
+        if hdiutil detach "$DEVICE" 2>/dev/null; then
+            echo "✅ DMG unmounted successfully"
+            break
+        else
+            UNMOUNT_ATTEMPTS=$((UNMOUNT_ATTEMPTS + 1))
+            echo "⚠️  Unmount attempt $UNMOUNT_ATTEMPTS failed, retrying..."
+            sleep 2
+            
+            if [ $UNMOUNT_ATTEMPTS -eq $MAX_ATTEMPTS ]; then
+                echo "🔨 Force unmounting..."
+                hdiutil detach "$DEVICE" -force || {
+                    echo "⚠️  Force unmount failed, trying mount point..."
+                    hdiutil detach "$MOUNT_DIR" -force
+                }
+                sleep 2
+            fi
+        fi
+    done
+    
+    # Convert to compressed read-only DMG
+    rm -f "$RELEASE_DIR/$DMG_NAME"
+    hdiutil convert "$TEMP_DMG" -format UDZO -o "$RELEASE_DIR/$DMG_NAME"
+    
+    # Clean up
+    rm -f "$TEMP_DMG"
+    rm -rf "$DMG_TEMP"
     
     echo "✅ Finished $ARCH"
 }
@@ -167,9 +272,9 @@ build_for_arch "arm64"
 echo ""
 echo "🎉 Build complete!"
 echo "📂 Artifacts in $RELEASE_DIR/"
-echo "   - Distribution Zip: $RELEASE_DIR/${APP_NAME}*${ARCH}.zip"
+echo "   - DMG Installer: $RELEASE_DIR/${APP_NAME}*${ARCH}.dmg"
 echo ""
 echo "🚀 To Release on GitHub:"
 echo "1. Go to your repo -> Releases -> Draft a new release"
 echo "2. Tag it as v$VERSION"
-echo "3. Upload the zip file from $RELEASE_DIR/"
+echo "3. Upload the DMG file from $RELEASE_DIR/"
