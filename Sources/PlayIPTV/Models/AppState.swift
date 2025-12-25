@@ -153,6 +153,7 @@ class AppState {
     // Playback Signals
     var playPauseSignal: Bool = false
     var fullscreenToggleSignal: Bool = false
+    var muteToggleSignal: Bool = false
     // toggleFullscreenSignal removed - utilizing NSApp.keyWindow direct toggle
     
     // Runtime state for channel browser (can be toggled independently)

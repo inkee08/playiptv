@@ -460,6 +460,15 @@ struct MediaControlsView: View {
                     updateCurrentTime()
                 }
             }
+            
+            // Sync volume from VLC player periodically (for global mute shortcut)
+            Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+                Task { @MainActor in
+                    if let vlcVolume = playerManager.player.audio?.volume {
+                        volume = Double(vlcVolume)
+                    }
+                }
+            }
         }
     }
 }

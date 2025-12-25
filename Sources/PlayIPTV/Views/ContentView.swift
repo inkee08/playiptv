@@ -37,8 +37,15 @@ struct ContentView: View {
         .onChange(of: appState.fullscreenToggleSignal) { _, _ in
             NSApp.keyWindow?.toggleFullScreen(nil)
         }
+        .onChange(of: appState.muteToggleSignal) { _, _ in
+            PlayerManager.shared.toggleMute()
+        }
         .onKeyPress(.init("f")) {
             NSApp.keyWindow?.toggleFullScreen(nil)
+            return .handled
+        }
+        .onKeyPress(.init("m")) {
+            appState.muteToggleSignal.toggle()
             return .handled
         }
         .sheet(isPresented: $appState.showVODDialog) {

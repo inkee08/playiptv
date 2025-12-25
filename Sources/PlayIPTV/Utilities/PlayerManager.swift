@@ -143,6 +143,21 @@ class PlayerManager: NSObject, ObservableObject {
         player.audio?.volume = volume
     }
     
+    private var volumeBeforeMute: Int32 = 100
+    
+    func toggleMute() {
+        if let currentVolume = player.audio?.volume {
+            if currentVolume == 0 {
+                // Unmute - restore previous volume
+                player.audio?.volume = volumeBeforeMute
+            } else {
+                // Mute - save current volume and set to 0
+                volumeBeforeMute = currentVolume
+                player.audio?.volume = 0
+            }
+        }
+    }
+    
     func skip(seconds: Int) {
         guard player.isSeekable else { return }
         let currentTime = Int(player.time.intValue)

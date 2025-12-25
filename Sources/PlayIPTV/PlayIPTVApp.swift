@@ -28,6 +28,11 @@ struct PlayIPTVApp: App {
                 }
                 .keyboardShortcut(.space, modifiers: [])
                 
+                Button("Mute/Unmute") {
+                    appState.muteToggleSignal.toggle()
+                }
+                .keyboardShortcut("m", modifiers: [])
+                
                 Button("Toggle Fullscreen") {
                     print("DEBUG: 'F' / Menu Item Pressed. KeyWindow: \(String(describing: NSApp.keyWindow))")
                     NSApp.keyWindow?.toggleFullScreen(nil)
