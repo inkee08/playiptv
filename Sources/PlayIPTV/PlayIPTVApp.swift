@@ -19,6 +19,8 @@ struct PlayIPTVApp: App {
                 }
         }
         .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1200, height: 800)
+        .windowResizability(.contentMinSize)
         .commands {
             SidebarCommands()
             

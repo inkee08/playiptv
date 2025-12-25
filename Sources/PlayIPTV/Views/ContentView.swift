@@ -21,6 +21,7 @@ struct ContentView: View {
                 mainContent
             }
         }
+        .frame(minWidth: 800, minHeight: 300)
         .handleWindowFullscreen(isFullscreen: $isWindowFullscreen)
         .onChange(of: isWindowFullscreen) { _, newValue in
             // Sync video fullscreen state with window fullscreen state
@@ -96,7 +97,7 @@ struct ContentView: View {
                     ContentUnavailableView("Select a Channel", systemImage: "tv", description: Text("Choose a channel from the list to start watching."))
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(minWidth: 425, maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .textBackgroundColor))
             .toolbar {
                 ToolbarItemGroup(placement: .automatic) {
