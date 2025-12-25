@@ -1,0 +1,32 @@
+[
+    {
+        "category_id": "1",
+        "category_name": "UK Channels",
+        "parent_id": 0
+    },
+    {
+        "category_id": "2",
+        "category_name": "News",
+        "parent_id": 0
+    },
+    {
+        "category_id": "3",
+        "category_name": "Sports",
+        "parent_id": 0
+    },
+    {
+        "category_id": "10",
+        "category_name": "Action Movies",
+        "parent_id": 0
+    },
+    {
+        "category_id": "11",
+        "category_name": "Drama Movies",
+        "parent_id": 0
+    },
+    {
+        "category_id": "20",
+        "category_name": "TV Series",
+        "parent_id": 0
+    }
+]

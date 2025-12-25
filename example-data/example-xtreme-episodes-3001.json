@@ -1,0 +1,137 @@
+{
+    "seasons": [
+        {
+            "air_date": "2008-01-20",
+            "episode_count": 7,
+            "id": 1,
+            "name": "Season 1",
+            "overview": "The first season of this gripping crime drama",
+            "season_number": 1,
+            "cover": "https://example.com/seasons/cd-s1.jpg",
+            "cover_big": "https://example.com/seasons/cd-s1-big.jpg"
+        },
+        {
+            "air_date": "2009-03-08",
+            "episode_count": 13,
+            "id": 2,
+            "name": "Season 2",
+            "overview": "The story continues with higher stakes",
+            "season_number": 2,
+            "cover": "https://example.com/seasons/cd-s2.jpg",
+            "cover_big": "https://example.com/seasons/cd-s2-big.jpg"
+        }
+    ],
+    "episodes": {
+        "1": [
+            {
+                "id": "30011",
+                "episode_num": 1,
+                "title": "Episode 1",
+                "container_extension": "mp4",
+                "info": {
+                    "tmdb_id": "62085",
+                    "releasedate": "2008-01-20",
+                    "plot": "The series begins with an unexpected turn of events",
+                    "duration_secs": 3480,
+                    "duration": "58:00",
+                    "video": {
+                        "index": 0,
+                        "codec_name": "h264",
+                        "codec_long_name": "H.264 / AVC / MPEG-4 AVC",
+                        "profile": "High",
+                        "codec_type": "video",
+                        "width": 1920,
+                        "height": 1080
+                    },
+                    "audio": {
+                        "index": 1,
+                        "codec_name": "aac",
+                        "codec_long_name": "AAC (Advanced Audio Coding)",
+                        "codec_type": "audio",
+                        "channels": 2,
+                        "language": "eng"
+                    },
+                    "bitrate": 5000
+                },
+                "custom_sid": "",
+                "added": "1640000000",
+                "season": 1,
+                "direct_source": ""
+            },
+            {
+                "id": "30012",
+                "episode_num": 2,
+                "title": "Episode 2",
+                "container_extension": "mp4",
+                "info": {
+                    "tmdb_id": "62086",
+                    "releasedate": "2008-01-27",
+                    "plot": "The characters face difficult choices",
+                    "duration_secs": 2880,
+                    "duration": "48:00",
+                    "video": {
+                        "index": 0,
+                        "codec_name": "h264",
+                        "width": 1920,
+                        "height": 1080
+                    },
+                    "audio": {
+                        "index": 1,
+                        "codec_name": "aac",
+                        "channels": 2,
+                        "language": "eng"
+                    },
+                    "bitrate": 5000
+                },
+                "custom_sid": "",
+                "added": "1640000000",
+                "season": 1,
+                "direct_source": ""
+            }
+        ],
+        "2": [
+            {
+                "id": "30021",
+                "episode_num": 1,
+                "title": "Episode 1",
+                "container_extension": "mp4",
+                "info": {
+                    "tmdb_id": "62098",
+                    "releasedate": "2009-03-08",
+                    "plot": "Season 2 begins with new challenges",
+                    "duration_secs": 2820,
+                    "duration": "47:00",
+                    "video": {
+                        "index": 0,
+                        "codec_name": "h264",
+                        "width": 1920,
+                        "height": 1080
+                    },
+                    "audio": {
+                        "index": 1,
+                        "codec_name": "aac",
+                        "channels": 2,
+                        "language": "eng"
+                    },
+                    "bitrate": 5000
+                },
+                "custom_sid": "",
+                "added": "1640000000",
+                "season": 2,
+                "direct_source": ""
+            }
+        ]
+    },
+    "info": {
+        "name": "Crime Drama Series",
+        "cover": "https://example.com/posters/crimedrama.jpg",
+        "plot": "A gripping crime drama following complex characters",
+        "cast": "Actor A, Actor B",
+        "director": "Director Name",
+        "genre": "Crime, Drama, Thriller",
+        "releaseDate": "2008-01-20",
+        "youtube_trailer": "https://youtube.com/watch?v=example",
+        "episode_run_time": "47",
+        "rating": "9.5"
+    }
+}

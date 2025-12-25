@@ -1,0 +1,90 @@
+{
+    "seasons": [
+        {
+            "air_date": "2016-07-15",
+            "episode_count": 8,
+            "id": 1,
+            "name": "Season 1",
+            "overview": "A mysterious sci-fi series with supernatural elements",
+            "season_number": 1,
+            "cover": "https://example.com/seasons/sm-s1.jpg",
+            "cover_big": "https://example.com/seasons/sm-s1-big.jpg"
+        }
+    ],
+    "episodes": {
+        "1": [
+            {
+                "id": "30021",
+                "episode_num": 1,
+                "title": "Episode 1",
+                "container_extension": "mkv",
+                "info": {
+                    "tmdb_id": "1110499",
+                    "releasedate": "2016-07-15",
+                    "plot": "The series begins with a mysterious disappearance",
+                    "duration_secs": 2940,
+                    "duration": "49:00",
+                    "video": {
+                        "index": 0,
+                        "codec_name": "h264",
+                        "width": 1920,
+                        "height": 1080
+                    },
+                    "audio": {
+                        "index": 1,
+                        "codec_name": "aac",
+                        "channels": 2,
+                        "language": "eng"
+                    },
+                    "bitrate": 6000
+                },
+                "custom_sid": "",
+                "added": "1640000000",
+                "season": 1,
+                "direct_source": ""
+            },
+            {
+                "id": "30022",
+                "episode_num": 2,
+                "title": "Episode 2",
+                "container_extension": "mkv",
+                "info": {
+                    "tmdb_id": "1110500",
+                    "releasedate": "2016-07-15",
+                    "plot": "The investigation deepens as new clues emerge",
+                    "duration_secs": 3360,
+                    "duration": "56:00",
+                    "video": {
+                        "index": 0,
+                        "codec_name": "h264",
+                        "width": 1920,
+                        "height": 1080
+                    },
+                    "audio": {
+                        "index": 1,
+                        "codec_name": "aac",
+                        "channels": 2,
+                        "language": "eng"
+                    },
+                    "bitrate": 6000
+                },
+                "custom_sid": "",
+                "added": "1640000000",
+                "season": 1,
+                "direct_source": ""
+            }
+        ]
+    },
+    "info": {
+        "name": "Sci-Fi Mystery Series",
+        "cover": "https://example.com/posters/scifimystery.jpg",
+        "plot": "A mysterious sci-fi series with supernatural elements",
+        "cast": "Young Actor C, Young Actor D",
+        "director": "Creative Team",
+        "genre": "Drama, Fantasy, Horror",
+        "releaseDate": "2016-07-15",
+        "youtube_trailer": "https://youtube.com/watch?v=example2",
+        "episode_run_time": "51",
+        "rating": "8.7"
+    }
+}

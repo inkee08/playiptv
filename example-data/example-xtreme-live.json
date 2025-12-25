@@ -1,0 +1,44 @@
+[
+    {
+        "num": 1,
+        "name": "Channel One HD",
+        "stream_type": "live",
+        "stream_id": 1001,
+        "stream_icon": "https://example.com/logos/channel1.png",
+        "epg_channel_id": "channel1.example",
+        "added": "1640000000",
+        "category_id": "1",
+        "custom_sid": "",
+        "tv_archive": 1,
+        "direct_source": "",
+        "tv_archive_duration": 7
+    },
+    {
+        "num": 2,
+        "name": "News Network International",
+        "stream_type": "live",
+        "stream_id": 1002,
+        "stream_icon": "https://example.com/logos/news.png",
+        "epg_channel_id": "news.example",
+        "added": "1640000000",
+        "category_id": "2",
+        "custom_sid": "",
+        "tv_archive": 0,
+        "direct_source": "",
+        "tv_archive_duration": 0
+    },
+    {
+        "num": 3,
+        "name": "Sports Channel HD",
+        "stream_type": "live",
+        "stream_id": 1003,
+        "stream_icon": "https://example.com/logos/sports.png",
+        "epg_channel_id": "sports.example",
+        "added": "1640000000",
+        "category_id": "3",
+        "custom_sid": "",
+        "tv_archive": 1,
+        "direct_source": "",
+        "tv_archive_duration": 3
+    }
+]

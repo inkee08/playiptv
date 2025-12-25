@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tv generator-info-name="Mock EPG Generator">
+  <!-- Channel One HD -->
+  <channel id="channel1.example">
+    <display-name>Channel One HD</display-name>
+  </channel>
+  
+  <!-- News Network International -->
+  <channel id="news.example">
+    <display-name>News Network International</display-name>
+  </channel>
+  
+  <!-- Sports Channel HD -->
+  <channel id="sports.example">
+    <display-name>Sports Channel HD</display-name>
+  </channel>
+  
+  <!-- Channel One HD Programs -->
+  <programme start="20251225080000 +0000" stop="20251225090000 +0000" channel="channel1.example">
+    <title lang="en">Morning Show</title>
+    <desc lang="en">The latest news and entertainment from the morning team.</desc>
+    <category lang="en">Entertainment</category>
+  </programme>
+  
+  <programme start="20251225090000 +0000" stop="20251225100000 +0000" channel="channel1.example">
+    <title lang="en">Lifestyle Magazine</title>
+    <desc lang="en">Tips and advice for daily living.</desc>
+    <category lang="en">Lifestyle</category>
+  </programme>
+  
+  <programme start="20251225100000 +0000" stop="20251225110000 +0000" channel="channel1.example">
+    <title lang="en">Home Improvement</title>
+    <desc lang="en">Property renovation and design show.</desc>
+    <category lang="en">Lifestyle</category>
+  </programme>
+  
+  <programme start="20251225110000 +0000" stop="20251225120000 +0000" channel="channel1.example">
+    <title lang="en">Restoration Workshop</title>
+    <desc lang="en">Experts restore cherished items.</desc>
+    <category lang="en">Lifestyle</category>
+  </programme>
+  
+  <programme start="20251225120000 +0000" stop="20251225130000 +0000" channel="channel1.example">
+    <title lang="en">Midday News</title>
+    <desc lang="en">The latest national and international news stories.</desc>
+    <category lang="en">News</category>
+  </programme>
+  
+  <programme start="20251225130000 +0000" stop="20251225150000 +0000" channel="channel1.example">
+    <title lang="en">Drama Series</title>
+    <desc lang="en">Ongoing drama series following local community.</desc>
+    <category lang="en">Drama</category>
+  </programme>
+  
+  <programme start="20251225150000 +0000" stop="20251225180000 +0000" channel="channel1.example">
+    <title lang="en">Cooking Competition</title>
+    <desc lang="en">Amateur chefs compete in culinary challenges.</desc>
+    <category lang="en">Entertainment</category>
+  </programme>
+  
+  <programme start="20251225180000 +0000" stop="20251225190000 +0000" channel="channel1.example">
+    <title lang="en">Evening News</title>
+    <desc lang="en">The latest national and international news.</desc>
+    <category lang="en">News</category>
+  </programme>
+  
+  <programme start="20251225190000 +0000" stop="20251225200000 +0000" channel="channel1.example">
+    <title lang="en">Evening Magazine</title>
+    <desc lang="en">Topical stories and celebrity guests.</desc>
+    <category lang="en">Entertainment</category>
+  </programme>
+  
+  <programme start="20251225200000 +0000" stop="20251225210000 +0000" channel="channel1.example">
+    <title lang="en">Dance Competition</title>
+    <desc lang="en">Celebrities paired with professional dancers.</desc>
+    <category lang="en">Entertainment</category>
+  </programme>
+  
+  <!-- News Network Programs -->
+  <programme start="20251225080000 +0000" stop="20251225090000 +0000" channel="news.example">
+    <title lang="en">News Hour</title>
+    <desc lang="en">Live breaking news and the latest headlines.</desc>
+    <category lang="en">News</category>
+  </programme>
+  
+  <programme start="20251225090000 +0000" stop="20251225100000 +0000" channel="news.example">
+    <title lang="en">Early Morning News</title>
+    <desc lang="en">Early morning news and analysis.</desc>
+    <category lang="en">News</category>
+  </programme>
+  
+  <programme start="20251225100000 +0000" stop="20251225120000 +0000" channel="news.example">
+    <title lang="en">Morning News Program</title>
+    <desc lang="en">Morning news covering the day's top stories.</desc>
+    <category lang="en">News</category>
+  </programme>
+  
+  <programme start="20251225120000 +0000" stop="20251225130000 +0000" channel="news.example">
+    <title lang="en">Political Analysis</title>
+    <desc lang="en">Analysis of the latest political developments.</desc>
+    <category lang="en">News</category>
+  </programme>
+  
+  <programme start="20251225130000 +0000" stop="20251225140000 +0000" channel="news.example">
+    <title lang="en">News Central</title>
+    <desc lang="en">Midday news coverage with breaking stories.</desc>
+    <category lang="en">News</category>
+  </programme>
+  
+  <programme start="20251225140000 +0000" stop="20251225160000 +0000" channel="news.example">
+    <title lang="en">Afternoon Report</title>
+    <desc lang="en">In-depth coverage of the day's top stories.</desc>
+    <category lang="en">News</category>
+  </programme>
+  
+  <programme start="20251225160000 +0000" stop="20251225170000 +0000" channel="news.example">
+    <title lang="en">News Room</title>
+    <desc lang="en">Breaking news and analysis.</desc>
+    <category lang="en">News</category>
+  </programme>
+  
+  <programme start="20251225170000 +0000" stop="20251225180000 +0000" channel="news.example">
+    <title lang="en">Evening Report</title>
+    <desc lang="en">Evening news analysis and commentary.</desc>
+    <category lang="en">News</category>
+  </programme>
+  
+  <programme start="20251225180000 +0000" stop="20251225190000 +0000" channel="news.example">
+    <title lang="en">Prime Time News</title>
+    <desc lang="en">In-depth look at the day's major stories.</desc>
+    <category lang="en">News</category>
+  </programme>
+  
+  <programme start="20251225190000 +0000" stop="20251225200000 +0000" channel="news.example">
+    <title lang="en">Late News</title>
+    <desc lang="en">Late evening news and analysis.</desc>
+    <category lang="en">News</category>
+  </programme>
+  
+  <!-- Sports Channel Programs -->
+  <programme start="20251225080000 +0000" stop="20251225100000 +0000" channel="sports.example">
+    <title lang="en">Sports Center</title>
+    <desc lang="en">The latest sports news, highlights and analysis.</desc>
+    <category lang="en">Sports</category>
+  </programme>
+  
+  <programme start="20251225100000 +0000" stop="20251225110000 +0000" channel="sports.example">
+    <title lang="en">Morning Sports Talk</title>
+    <desc lang="en">Morning sports discussion and debate.</desc>
+    <category lang="en">Sports</category>
+  </programme>
+  
+  <programme start="20251225110000 +0000" stop="20251225120000 +0000" channel="sports.example">
+    <title lang="en">Sports Debate</title>
+    <desc lang="en">Debate show discussing hot sports topics.</desc>
+    <category lang="en">Sports</category>
+  </programme>
+  
+  <programme start="20251225120000 +0000" stop="20251225150000 +0000" channel="sports.example">
+    <title lang="en">Basketball Game 1</title>
+    <desc lang="en">Live professional basketball game.</desc>
+    <category lang="en">Sports</category>
+    <category lang="en">Basketball</category>
+  </programme>
+  
+  <programme start="20251225150000 +0000" stop="20251225160000 +0000" channel="sports.example">
+    <title lang="en">Pre-Game Show</title>
+    <desc lang="en">Pre-game analysis and predictions.</desc>
+    <category lang="en">Sports</category>
+  </programme>
+  
+  <programme start="20251225160000 +0000" stop="20251225190000 +0000" channel="sports.example">
+    <title lang="en">Basketball Game 2</title>
+    <desc lang="en">Live professional basketball game.</desc>
+    <category lang="en">Sports</category>
+    <category lang="en">Basketball</category>
+  </programme>
+  
+  <programme start="20251225190000 +0000" stop="20251225200000 +0000" channel="sports.example">
+    <title lang="en">Football News</title>
+    <desc lang="en">The latest football news and analysis.</desc>
+    <category lang="en">Sports</category>
+    <category lang="en">Football</category>
+  </programme>
+  
+  <programme start="20251225200000 +0000" stop="20251225210000 +0000" channel="sports.example">
+    <title lang="en">Sports Roundtable</title>
+    <desc lang="en">Sports debate and discussion show.</desc>
+    <category lang="en">Sports</category>
+  </programme>
+</tv>

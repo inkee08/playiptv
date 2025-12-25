@@ -1,0 +1,19 @@
+#EXTM3U x-tvg-url="http://localhost:8000/xmltv.php"
+
+#EXTINF:-1 tvg-id="channel1.example" tvg-name="Channel One HD" tvg-logo="https://example.com/logos/channel1.png" group-title="Entertainment Channels",Channel One HD
+http://example.com/stream/channel1hd.m3u8
+
+#EXTINF:-1 tvg-id="news.example" tvg-name="News Network International" tvg-logo="https://example.com/logos/news.png" group-title="News",News Network International
+http://example.com/stream/news.m3u8
+
+#EXTINF:-1 tvg-id="sports.example" tvg-name="Sports Channel HD" tvg-logo="https://example.com/logos/sports.png" group-title="Sports",Sports Channel HD
+http://example.com/stream/sports.m3u8
+
+#EXTINF:-1 tvg-id="" tvg-name="Action Movie 1" tvg-logo="https://example.com/posters/action1.jpg" group-title="Action Movies",Action Movie 1
+http://example.com/vod/action1.mp4
+
+#EXTINF:-1 tvg-id="" tvg-name="Action Movie 2" tvg-logo="https://example.com/posters/action2.jpg" group-title="Action Movies",Action Movie 2
+http://example.com/vod/action2.mkv
+
+#EXTINF:-1 tvg-id="" tvg-name="Drama Movie 1" tvg-logo="https://example.com/posters/drama1.jpg" group-title="Drama Movies",Drama Movie 1
+http://example.com/vod/drama1.mp4

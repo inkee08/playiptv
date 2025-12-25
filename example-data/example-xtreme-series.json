@@ -1,0 +1,42 @@
+[
+    {
+        "num": 1,
+        "name": "Crime Drama Series",
+        "series_id": 3001,
+        "cover": "https://example.com/posters/crimedrama.jpg",
+        "plot": "A gripping crime drama following complex characters",
+        "cast": "Actor A, Actor B",
+        "director": "Director Name",
+        "genre": "Crime, Drama, Thriller",
+        "releaseDate": "2008-01-20",
+        "last_modified": "1640000000",
+        "rating": "9.5",
+        "rating_5based": 4.75,
+        "backdrop_path": [
+            "https://example.com/backdrops/cd1.jpg"
+        ],
+        "youtube_trailer": "https://youtube.com/watch?v=example",
+        "episode_run_time": "47",
+        "category_id": "20"
+    },
+    {
+        "num": 2,
+        "name": "Sci-Fi Mystery Series",
+        "series_id": 3002,
+        "cover": "https://example.com/posters/scifimystery.jpg",
+        "plot": "A mysterious sci-fi series with supernatural elements",
+        "cast": "Young Actor C, Young Actor D",
+        "director": "Creative Team",
+        "genre": "Drama, Fantasy, Horror",
+        "releaseDate": "2016-07-15",
+        "last_modified": "1640000000",
+        "rating": "8.7",
+        "rating_5based": 4.35,
+        "backdrop_path": [
+            "https://example.com/backdrops/sm1.jpg"
+        ],
+        "youtube_trailer": "https://youtube.com/watch?v=example2",
+        "episode_run_time": "51",
+        "category_id": "20"
+    }
+]

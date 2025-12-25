@@ -1,19 +1,19 @@
 {
   "sources": [
     {
-      "name": "Debug Xtream Source",
-      "type": "xtream",
-      "xtreamUrl": "https://your-server.com",
-      "username": "your_username",
-      "password": "your_password",
-      "epgUrl": "https://example.com/epg.xml"
+      "name": "local source - m3u",
+      "type": "m3u",
+      "m3uUrl": "http://localhost:8000/playlist.m3u",
+      "epgUrl": "http://localhost:8000/xmltv.php"
     },
     {
-      "name": "Debug M3U Source",
-      "type": "m3u",
-      "m3uUrl": "https://example.com/playlist.m3u",
-      "epgUrl": "https://example.com/epg.xml"
-    },
+      "name": "local source - xtream",
+      "type": "xtream",
+      "xtreamUrl": "http://localhost:8000",
+      "username": "test",
+      "password": "test",
+      "epgUrl": "http://localhost:8000/xmltv.php"
+    }
     {
       "name": "Auto-Update Test Source",
       "type": "m3u",
