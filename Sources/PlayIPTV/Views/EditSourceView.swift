@@ -37,6 +37,7 @@ struct EditSourceView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 TextField("", text: $name)
+                    .lineLimit(1)
             }
             
             if source.type == .m3u {
@@ -45,6 +46,7 @@ struct EditSourceView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     TextField("", text: $m3uUrl)
+                        .lineLimit(1)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
@@ -52,18 +54,21 @@ struct EditSourceView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     TextField("", text: $xtreamUrl)
+                        .lineLimit(1)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Username")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     TextField("", text: $xtreamUsername)
+                        .lineLimit(1)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Password")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     SecureField("", text: $xtreamPassword)
+                        .lineLimit(1)
                 }
             }
             
@@ -75,6 +80,7 @@ struct EditSourceView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 TextField("Optional - Falls back to global EPG", text: $epgUrl)
+                    .lineLimit(1)
                 Text("Leave empty to use global EPG from General settings")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
@@ -119,7 +125,6 @@ struct EditSourceView: View {
         }
         .padding(20)
         .frame(minWidth: 400, maxWidth: 500)
-        .fixedSize()
     }
     
     private func saveChanges() -> Bool {

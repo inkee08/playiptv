@@ -386,6 +386,12 @@ class AppState {
                 continue
             }
             
+            // Check if a source with this name already exists (to avoid duplicates)
+            if sources.contains(where: { $0.name == debugSource.name }) {
+                print("DEBUG: Source '\(name)' already exists, skipping duplicate from debug-config.json")
+                continue
+            }
+            
             print("DEBUG: Adding debug source: \(name) (\(typeString))")
             sources.append(debugSource)
             

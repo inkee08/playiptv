@@ -319,6 +319,7 @@ struct AddSourceView: View {
                     .foregroundColor(.secondary)
                 TextField("", text: $name)
                     .focused($isNameFieldFocused)
+                    .lineLimit(1)
             }
             
             Picker("", selection: $sourceType) {
@@ -334,6 +335,7 @@ struct AddSourceView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     TextField("", text: $m3uUrl)
+                        .lineLimit(1)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
@@ -341,18 +343,21 @@ struct AddSourceView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     TextField("", text: $xtreamUrl)
+                        .lineLimit(1)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Username")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     TextField("", text: $xtreamUsername)
+                        .lineLimit(1)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Password")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     SecureField("", text: $xtreamPassword)
+                        .lineLimit(1)
                 }
             }
             
@@ -364,6 +369,7 @@ struct AddSourceView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 TextField("Optional - Falls back to global EPG", text: $epgUrl)
+                    .lineLimit(1)
                 Text("Leave empty to use global EPG from General settings")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
@@ -408,7 +414,6 @@ struct AddSourceView: View {
         }
         .padding(20)
         .frame(minWidth: 400, maxWidth: 500)
-        .fixedSize()
         .onAppear {
             isNameFieldFocused = true
         }
