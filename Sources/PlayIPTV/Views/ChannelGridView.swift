@@ -27,9 +27,6 @@ struct ChannelGridView: View {
     }
     
     var body: some View {
-        // Force redraw on timer tick to update EPG
-        let _ = appState.currentTick
-        
         Group {
             if appState.showingEpisodeList, let series = appState.episodeListSeries {
                 EpisodeListView(
@@ -85,56 +82,31 @@ struct ChannelGridView: View {
                         Divider()
                     }
                     
+                    
                     ForEach(appState.filteredChannels) { channel in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Image(systemName: "tv")
-                                    .foregroundStyle(.secondary)
-                                Text(channel.name)
-                                
-                                // Loading indicator for series
-                                if channel.isSeries && appState.isLoadingEpisodes && appState.selectedSeriesForEpisodes?.id == channel.id {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                        .frame(width: 12, height: 12)
-                                }
-                                
-                                Spacer()
-                            }
-                            
-                            // EPG Program info (Live TV only)
-                            if !channel.isSeries {
-                                let isLiveTV = channel.categoryId.lowercased().contains("live") || 
-                                               channel.groupTitle?.lowercased().contains("live") == true
-                                
-                                if isLiveTV, let program = EPGManager.shared.getCurrentProgram(for: channel.name, sourceId: channel.sourceId) {
-                                    Text(program.title)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                        .padding(.leading, 24)
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                        .contentShape(Rectangle())
-                        .background(appState.selectedChannel?.id == channel.id ? Color.accentColor.opacity(0.2) : Color.clear)
-                        .onTapGesture {
-                            handleChannelTap(channel)
-                        }
-                        .contextMenu {
-                            if let source = appState.sources.first(where: { $0.id == channel.sourceId }),
-                               let sourceUrl = source.url?.absoluteString {
-                                let isFavorited = favoritesManager.isFavorite(streamId: channel.streamId, sourceUrl: sourceUrl)
-                                Button(action: {
+                        let cacheKey = "\(channel.sourceId.uuidString):\(channel.name)"
+                        let cachedProgram = appState.epgProgramCache[cacheKey]
+                        
+                        let favoriteKey = "\(channel.sourceId.uuidString):\(channel.streamId)"
+                        let isFavorited = appState.favoritesCache.contains(favoriteKey)
+                        
+                        ChannelRowView(
+                            channel: channel,
+                            epgProgram: cachedProgram,
+                            isSelected: appState.selectedChannel?.id == channel.id,
+                            isFavorited: isFavorited,
+                            onTap: { handleChannelTap(channel) },
+                            onToggleFavorite: {
+                                if let source = appState.sources.first(where: { $0.id == channel.sourceId }),
+                                   let sourceUrl = source.url?.absoluteString {
                                     favoritesManager.toggleFavorite(channel: channel, sourceUrl: sourceUrl)
-                                }) {
-                                    Label(isFavorited ? "Remove from Favorites" : "Add to Favorites", 
-                                          systemImage: isFavorited ? "heart.slash" : "heart")
+                                    // Immediately update cache
+                                    Task { @MainActor in
+                                        appState.updateEPGCache()
+                                    }
                                 }
                             }
-                        }
+                        )
                         .id(channel.id)
                         
                         Divider()
@@ -215,10 +187,19 @@ struct ChannelGridView: View {
     @ViewBuilder
     func channelButton(for channel: Channel) -> some View {
         let isSelected = appState.selectedChannel?.id == channel.id
+        let cacheKey = "\(channel.sourceId.uuidString):\(channel.name)"
+        let cachedProgram = appState.epgProgramCache[cacheKey]
+        let isLoading = channel.isSeries && appState.isLoadingEpisodes && appState.selectedSeriesForEpisodes?.id == channel.id
+        
         Button(action: {
             handleChannelTap(channel)
         }) {
-            ChannelCard(channel: channel, isSelected: isSelected)
+            ChannelCard(
+                channel: channel,
+                epgProgram: cachedProgram,
+                isSelected: isSelected,
+                isLoading: isLoading
+            )
         }
         .buttonStyle(.plain)
         .contextMenu {
@@ -252,10 +233,11 @@ struct ChannelGridView: View {
     }
 }
 
-struct ChannelCard: View {
+struct ChannelCard: View, Equatable {
     let channel: Channel
+    let epgProgram: EPGProgram?
     let isSelected: Bool
-    @Environment(AppState.self) private var appState
+    let isLoading: Bool
     
     var body: some View {
         VStack {
@@ -276,7 +258,7 @@ struct ChannelCard: View {
                 .multilineTextAlignment(.center)
             
             // Loading indicator for series
-            if channel.isSeries && appState.isLoadingEpisodes && appState.selectedSeriesForEpisodes?.id == channel.id {
+            if isLoading {
                 HStack(spacing: 4) {
                     ProgressView()
                         .scaleEffect(0.6)
@@ -288,21 +270,24 @@ struct ChannelCard: View {
             }
             
             // EPG Program info (Live TV only)
-            if !channel.isSeries {
-                let isLiveTV = channel.categoryId.lowercased().contains("live") || 
-                               channel.groupTitle?.lowercased().contains("live") == true
-                
-                if isLiveTV, let program = EPGManager.shared.getCurrentProgram(for: channel.name, sourceId: channel.sourceId) {
-                    Text(program.title)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .multilineTextAlignment(.center)
-                }
+            if let program = epgProgram {
+                Text(program.title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .multilineTextAlignment(.center)
             }
         }
         .padding()
         .background(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
         .cornerRadius(16)
+    }
+    
+    // Equatable conformance - only update if these values change
+    static func == (lhs: ChannelCard, rhs: ChannelCard) -> Bool {
+        lhs.channel.id == rhs.channel.id &&
+        lhs.epgProgram?.id == rhs.epgProgram?.id &&
+        lhs.isSelected == rhs.isSelected &&
+        lhs.isLoading == rhs.isLoading
     }
 }

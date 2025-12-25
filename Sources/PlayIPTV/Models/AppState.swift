@@ -42,6 +42,8 @@ class AppState {
                     }
                 }
             }
+            searchDebounceTimer?.invalidate()  // Cancel pending debounce
+            updateFilteredChannels()
         }
     }
     
@@ -63,6 +65,8 @@ class AppState {
                 searchText = ""
                 channelSearchText = ""  // Also clear channel search when category changes
             }
+            searchDebounceTimer?.invalidate()  // Cancel pending debounce
+            updateFilteredChannels()
         }
     }
     
@@ -94,7 +98,7 @@ class AppState {
     // Force UI updates when recent list changes
     private var recentVODUpdateToken: Int = 0
     private var favoritesUpdateToken: Int = 0
-    private var cancellables = Set<AnyCancellable>()
+    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
     
     // Theme support
     enum AppTheme: String, CaseIterable, Codable, Identifiable {
@@ -110,6 +114,12 @@ class AppState {
     }
     
     // EPG support
+    // Cache of current EPG programs per channel (key: "sourceId:channelName")
+    var epgProgramCache: [String: EPGProgram] = [:]
+    
+    // Favorites cache to avoid repeated ObservableObject lookups (key: "sourceId:streamId")
+    var favoritesCache: Set<String> = []
+    
     var epgUrl: String? {
         didSet {
             if let url = epgUrl {
@@ -157,10 +167,25 @@ class AppState {
     var muteToggleSignal: Bool = false
     // toggleFullscreenSignal removed - utilizing NSApp.keyWindow direct toggle
     
+    
+    // Debounce timer for search updates
+    @ObservationIgnored private var searchDebounceTimer: Timer?
+    
     // Runtime state for channel browser (can be toggled independently)
     var isChannelBrowserVisible: Bool = false
-    var channelSearchText: String = "" // Shared search text for channel filtering
+    var channelSearchText: String = "" {
+        didSet {
+            // Debounce search text changes
+            searchDebounceTimer?.invalidate()
+            searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: false) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.updateFilteredChannels()
+                }
+            }
+        }
+    }
     
+
     // Episode selection state
     var selectedSeriesForEpisodes: Channel?
     var episodesForSeries: [Episode] = []
@@ -236,6 +261,10 @@ class AppState {
             // Set up UI refresh timer (every minute) to update "Current Program" displays
             setupUIRefreshTimer()
         }
+        
+        // Set up debounced search update (will be triggered by didSet on channelSearchText)
+        // Initial update
+        updateFilteredChannels()
         
         // Listen for changes in RecentVODManager
         RecentVODManager.shared.objectWillChange
@@ -469,7 +498,11 @@ class AppState {
         vodDialogSavedPosition = nil
     }
     
-    var filteredChannels: [Channel] {
+    // Filtered channels - updated via debounce
+    var filteredChannels: [Channel] = []
+    
+    // Update filtered channels (called by debounced subscriber)
+    private func updateFilteredChannels() {
         let text = channelSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         var channelsToFilter: [Channel]
         
@@ -481,7 +514,8 @@ class AppState {
                 
                 // Get recent VOD for current source
                 guard let source = selectedSource, let sourceUrl = source.url, let content = sourceContent[source.id] else {
-                    return []
+                    filteredChannels = []
+                    return
                 }
                 let recentItems = RecentVODManager.shared.getRecents(for: sourceUrl.absoluteString)
                 channelsToFilter = content.channels.filter { channel in
@@ -512,7 +546,10 @@ class AppState {
             } else if cat.id == "fav_live" {
                 // Favorites (Live)
                 let _ = favoritesUpdateToken
-                guard let source = selectedSource, let sourceUrl = source.url, let content = sourceContent[source.id] else { return [] }
+                guard let source = selectedSource, let sourceUrl = source.url, let content = sourceContent[source.id] else {
+                    filteredChannels = []
+                    return
+                }
                 
                 let favorites = FavoritesManager.shared.getFavorites(for: sourceUrl.absoluteString, type: .live)
                 
@@ -547,7 +584,10 @@ class AppState {
             } else if cat.id == "fav_vod" {
                 // Favorites (VOD)
                 let _ = favoritesUpdateToken
-                guard let source = selectedSource, let sourceUrl = source.url, let content = sourceContent[source.id] else { return [] }
+                guard let source = selectedSource, let sourceUrl = source.url, let content = sourceContent[source.id] else {
+                    filteredChannels = []
+                    return
+                }
                 
                 let favorites = FavoritesManager.shared.getFavorites(for: sourceUrl.absoluteString, type: .vod)
                 
@@ -606,25 +646,32 @@ class AppState {
                     return true
                 }
             } else {
-                guard let source = selectedSource, let content = sourceContent[source.id] else { return [] }
+                guard let source = selectedSource, let content = sourceContent[source.id] else {
+                    filteredChannels = []
+                    return
+                }
                 channelsToFilter = content.channels.filter { $0.categoryId == cat.id || $0.groupTitle == cat.name }
             }
         } else {
-            guard let source = selectedSource, let content = sourceContent[source.id] else { return [] }
+            guard let source = selectedSource, let content = sourceContent[source.id] else {
+                filteredChannels = []
+                return
+            }
             channelsToFilter = content.channels
         }
         
         if text.isEmpty {
-            return channelsToFilter
+            filteredChannels = channelsToFilter
         } else {
-            return channelsToFilter.filter { channel in
+            filteredChannels = channelsToFilter.filter { channel in
                 // 1. Check channel name
                 if channel.name.localizedCaseInsensitiveContains(text) {
                     return true
                 }
                 
-                // 2. Check current program title from EPG
-                if let program = EPGManager.shared.getCurrentProgram(for: channel.name, sourceId: channel.sourceId),
+                // 2. Check current program title from EPG cache (non-blocking)
+                let cacheKey = "\(channel.sourceId.uuidString):\(channel.name)"
+                if let program = epgProgramCache[cacheKey],
                    program.title.localizedCaseInsensitiveContains(text) {
                     return true
                 }
@@ -955,12 +1002,46 @@ class AppState {
     // MARK: - UI Auto-Refresh
     
     private func setupUIRefreshTimer() {
-        // Update UI every 30 seconds to reflect program changes
-        Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+        // Update UI every 60 seconds to reflect program changes
+        // Reduced from 30s to 60s to improve performance
+        Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.currentTick += 1
+                self?.updateEPGCache()
             }
         }
+    }
+    
+    /// Update the EPG program cache and favorites cache for all channels
+    /// This is called every 60s to keep the caches fresh without expensive lookups during scrolling
+    func updateEPGCache() {
+        guard let source = selectedSource, let content = sourceContent[source.id] else { return }
+        guard let sourceUrl = source.url?.absoluteString else { return }
+        
+        var newEPGCache: [String: EPGProgram] = [:]
+        var newFavoritesCache: Set<String> = []
+        
+        for channel in content.channels {
+            // Update favorites cache
+            let favoriteKey = "\(channel.sourceId.uuidString):\(channel.streamId)"
+            if FavoritesManager.shared.isFavorite(streamId: channel.streamId, sourceUrl: sourceUrl) {
+                newFavoritesCache.insert(favoriteKey)
+            }
+            
+            // Only cache EPG for live TV channels
+            let isLiveTV = channel.categoryId.lowercased().contains("live") || 
+                           channel.groupTitle?.lowercased().contains("live") == true
+            
+            if isLiveTV, !channel.isSeries {
+                if let program = EPGManager.shared.getCurrentProgram(for: channel.name, sourceId: channel.sourceId) {
+                    let cacheKey = "\(channel.sourceId.uuidString):\(channel.name)"
+                    newEPGCache[cacheKey] = program
+                }
+            }
+        }
+        
+        epgProgramCache = newEPGCache
+        favoritesCache = newFavoritesCache
     }
 
 }

@@ -53,19 +53,26 @@ class PlayerManager: NSObject, ObservableObject {
         }
         
         let media = VLCMedia(url: url)
-        player.media = media
         
-        // Flag to disable subtitles when they become available
-        shouldDisableSubtitles = true
-        
-        player.play()
-        
-        // Log initial subtitle state
-        print("DEBUG: Subtitle → Initial state after play(): \(player.currentVideoSubTitleIndex)")
-        
-        // Disable subtitles by default - try multiple times to ensure it sticks
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+        // Use Task to prevent blocking UI during VLC network operations
+        // VLC operations must stay on MainActor but Task makes them async
+        Task.detached { @MainActor [weak self] in
             guard let self = self else { return }
+            
+            self.player.media = media
+            
+            // Flag to disable subtitles when they become available
+            self.shouldDisableSubtitles = true
+            
+            self.player.play()
+            
+            // Log initial subtitle state
+            print("DEBUG: Subtitle → Initial state after play(): \(self.player.currentVideoSubTitleIndex)")
+            
+            // Disable subtitles by default - try multiple times to ensure it sticks
+            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s
+            guard !Task.isCancelled else { return }
+            
             print("DEBUG: Subtitle → State at 0.3s: \(self.player.currentVideoSubTitleIndex)")
             print("DEBUG: Subtitle → Available tracks: \(String(describing: self.player.videoSubTitlesNames))")
             print("DEBUG: Subtitle → Available indexes: \(String(describing: self.player.videoSubTitlesIndexes))")
@@ -73,10 +80,10 @@ class PlayerManager: NSObject, ObservableObject {
                 self.player.currentVideoSubTitleIndex = -1
                 print("DEBUG: Subtitle → Set to -1 at 0.3s, current: \(self.player.currentVideoSubTitleIndex)")
             }
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
-            guard let self = self else { return }
+            
+            try? await Task.sleep(nanoseconds: 400_000_000) // Additional 0.4s (total 0.7s)
+            guard !Task.isCancelled else { return }
+            
             print("DEBUG: Subtitle → State at 0.7s: \(self.player.currentVideoSubTitleIndex)")
             if self.shouldDisableSubtitles {
                 self.player.currentVideoSubTitleIndex = -1
