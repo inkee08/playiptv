@@ -151,7 +151,15 @@ struct EditSourceView: View {
                 updatedSource.xtreamPass = xtreamPassword
             }
             
+            
             appState.sources[index] = updatedSource
+            
+            // Save to UserDefaults
+            Task { @MainActor in
+                if let data = try? JSONEncoder().encode(appState.sources) {
+                    UserDefaults.standard.set(data, forKey: "savedSources")
+                }
+            }
             
             // Reload EPG if URL changed
             if updatedSource.epgUrl != source.epgUrl {
