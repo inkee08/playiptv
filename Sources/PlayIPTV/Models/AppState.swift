@@ -498,6 +498,13 @@ class AppState {
                         return true
                     }
                 }
+                
+                // Sort by lastWatched date (most recent first)
+                channelsToFilter.sort { channel1, channel2 in
+                    let date1 = recentItems.first(where: { $0.id == channel1.streamId })?.lastWatched ?? .distantPast
+                    let date2 = recentItems.first(where: { $0.id == channel2.streamId })?.lastWatched ?? .distantPast
+                    return date1 > date2
+                }
             } else if cat.id == "fav_live" {
                 // Favorites (Live)
                 let _ = favoritesUpdateToken
