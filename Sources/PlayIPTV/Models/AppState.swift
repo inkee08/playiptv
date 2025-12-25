@@ -856,6 +856,17 @@ class AppState {
         saveSources()
         Task {
             await loadSource(source)
+            
+            // Load per-source EPG if configured
+            if let sourceEpg = source.epgUrl, !sourceEpg.isEmpty {
+                await EPGManager.shared.loadEPG(for: source.id, from: sourceEpg)
+                
+                // Update EPG cache and UI
+                await MainActor.run {
+                    currentTick += 1
+                }
+            }
+            
             if selectedSource == nil {
                 selectedSource = source
             }
