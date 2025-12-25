@@ -3,6 +3,7 @@ import SwiftUI
 struct FullscreenChannelBrowserView: View {
     @Bindable var appState: AppState
     @Environment(\.openSettings) private var openSettings
+    @ObservedObject private var favoritesManager = FavoritesManager.shared
     
     var filteredChannels: [Channel] {
         let text = appState.channelSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -79,6 +80,18 @@ struct FullscreenChannelBrowserView: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .contextMenu {
+                                if let source = appState.sources.first(where: { $0.id == channel.sourceId }),
+                                   let sourceUrl = source.url?.absoluteString {
+                                    let isFavorited = favoritesManager.isFavorite(streamId: channel.streamId, sourceUrl: sourceUrl)
+                                    Button(action: {
+                                        favoritesManager.toggleFavorite(channel: channel, sourceUrl: sourceUrl)
+                                    }) {
+                                        Label(isFavorited ? "Remove from Favorites" : "Add to Favorites", 
+                                              systemImage: isFavorited ? "heart.slash" : "heart")
+                                    }
+                                }
+                            }
                             .id(channel.id) // Add ID for scrolling
                             
                             Divider()

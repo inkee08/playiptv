@@ -41,21 +41,6 @@ struct EpisodeListView: View {
                 }
                 
                 Spacer()
-                
-                // Series Favorite Button
-                if let source = appState.sources.first(where: { $0.id == series.sourceId }),
-                   let sourceUrl = source.url?.absoluteString {
-                    Button(action: {
-                        favoritesManager.toggleFavorite(channel: series, sourceUrl: sourceUrl)
-                    }) {
-                        Image(systemName: favoritesManager.isFavorite(streamId: series.streamId, sourceUrl: sourceUrl) ? "heart.fill" : "heart")
-                            .font(.title2)
-                            .foregroundColor(.pink)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Favorite Series")
-                    .padding(.trailing, 8)
-                }
             }
             .padding()
             .background(Color(nsColor: .controlBackgroundColor))
@@ -85,6 +70,7 @@ struct EpisodeListView: View {
                                 EpisodeRow(
                                     episode: episode,
                                     series: series,
+                                    sourceUrl: appState.sources.first(where: { $0.id == series.sourceId })?.url?.absoluteString,
                                     hasProgress: hasProgress(for: episode),
                                     onPlay: {
                                         playEpisode(episode)
@@ -148,10 +134,12 @@ struct EpisodeListView: View {
 struct EpisodeRow: View {
     let episode: Episode
     let series: Channel
+    let sourceUrl: String?
     let hasProgress: Bool
     let onPlay: () -> Void
     
     @ObservedObject private var positionManager = PlaybackPositionManager.shared
+    @ObservedObject private var favoritesManager = FavoritesManager.shared
     
     private var progress: Double {
         positionManager.getProgress(streamId: episode.id) ?? 0
@@ -195,5 +183,16 @@ struct EpisodeRow: View {
             }
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            if let sourceUrl = sourceUrl {
+                let isFavorited = favoritesManager.isFavorite(streamId: series.streamId, sourceUrl: sourceUrl)
+                Button(action: {
+                    favoritesManager.toggleFavorite(channel: series, sourceUrl: sourceUrl)
+                }) {
+                    Label(isFavorited ? "Remove Series from Favorites" : "Add Series to Favorites", 
+                          systemImage: isFavorited ? "heart.slash" : "heart")
+                }
+            }
+        }
     }
 }

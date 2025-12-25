@@ -11,6 +11,7 @@ struct ChannelGridView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
+    @ObservedObject private var favoritesManager = FavoritesManager.shared
     
     private var headerBackgroundColor: Color {
         if isListView {
@@ -114,6 +115,18 @@ struct ChannelGridView: View {
                         .onTapGesture {
                             handleChannelTap(channel)
                         }
+                        .contextMenu {
+                            if let source = appState.sources.first(where: { $0.id == channel.sourceId }),
+                               let sourceUrl = source.url?.absoluteString {
+                                let isFavorited = favoritesManager.isFavorite(streamId: channel.streamId, sourceUrl: sourceUrl)
+                                Button(action: {
+                                    favoritesManager.toggleFavorite(channel: channel, sourceUrl: sourceUrl)
+                                }) {
+                                    Label(isFavorited ? "Remove from Favorites" : "Add to Favorites", 
+                                          systemImage: isFavorited ? "heart.slash" : "heart")
+                                }
+                            }
+                        }
                         .id(channel.id)
                         
                         Divider()
@@ -200,6 +213,18 @@ struct ChannelGridView: View {
             ChannelCard(channel: channel, isSelected: isSelected)
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            if let source = appState.sources.first(where: { $0.id == channel.sourceId }),
+               let sourceUrl = source.url?.absoluteString {
+                let isFavorited = favoritesManager.isFavorite(streamId: channel.streamId, sourceUrl: sourceUrl)
+                Button(action: {
+                    favoritesManager.toggleFavorite(channel: channel, sourceUrl: sourceUrl)
+                }) {
+                    Label(isFavorited ? "Remove from Favorites" : "Add to Favorites", 
+                          systemImage: isFavorited ? "heart.slash" : "heart")
+                }
+            }
+        }
     }
     
     private func handleChannelTap(_ channel: Channel) {

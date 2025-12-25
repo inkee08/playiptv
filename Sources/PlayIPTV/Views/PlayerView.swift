@@ -94,7 +94,6 @@ struct MediaControlsView: View {
     let channel: Channel
     let isFullscreen: Bool
     @ObservedObject private var playerManager = PlayerManager.shared
-    @ObservedObject private var favoritesManager = FavoritesManager.shared // Add observation
     @Environment(AppState.self) private var appState
     @State private var volume: Double = 100
     @State private var isScrubbing: Bool = false
@@ -175,39 +174,6 @@ struct MediaControlsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Favorites Button in top LEFT overlay
-            HStack {
-                if let source = appState.selectedSource, let sourceUrl = source.url?.absoluteString {
-                    // Determine target for favoriting
-                    // If playing an episode, favorite the Series, otherwise favorite the channel
-                    let targetChannel: Channel? = {
-                        if let seriesId = appState.currentSeriesId,
-                           let series = appState.channels.first(where: { $0.streamId == seriesId && $0.isSeries }) {
-                            return series
-                        }
-                        return channel
-                    }()
-                    
-                    if let target = targetChannel, !(isLiveTV && isFullscreen) {
-                        Button(action: {
-                            favoritesManager.toggleFavorite(channel: target, sourceUrl: sourceUrl)
-                        }) {
-                            Image(systemName: favoritesManager.isFavorite(streamId: target.streamId, sourceUrl: sourceUrl) ? "heart.fill" : "heart")
-                                .font(.title2)
-                                .foregroundColor(.pink)
-                                .padding(10)
-                                .background(Material.ultraThinMaterial)
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .padding()
-                        .help(appState.currentSeriesId != nil ? "Favorite Series" : "Toggle Favorite")
-                    }
-                }
-                
-                Spacer()
-            }
-            
             Spacer()
             
             // Timeline (VOD only) - above controls
