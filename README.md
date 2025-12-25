@@ -46,5 +46,23 @@ Download the latest version from the **[Releases](../../releases)** page.
 ### Build & Package Script
 We provide a powerful `package_app.sh` script to handle dependencies, signing, icon generation, and packaging.
 
+---
+
+## 📸 Screenshots
+
+### M3U Source - Live TV
+![M3U Live TV](screenshots/example-m3u-live_tv.png)
+*Browse live TV channels from M3U playlist with EPG information*
+
+### Xtream Source - Live TV
+![Xtream Live TV](screenshots/example-xtream-live_tv.png)
+*Channel browser with Xtream Codes API source*
+
+### Xtream Source - VOD Episodes
+![VOD Episodes](screenshots/example-xtream-vod_episodes.png)
+*Browse and play TV series episodes with season selection*
+
+---
+
 ## 📄 License
 [MIT](https://choosealicense.com/licenses/mit/)
