@@ -74,7 +74,7 @@ struct AboutSettingsView: View {
             
             // Footer
             VStack(spacing: 8) {
-                Text("© 2024 PlayIPTV")
+                Text("© 2025 PlayIPTV")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
