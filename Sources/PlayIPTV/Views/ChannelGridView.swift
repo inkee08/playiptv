@@ -91,6 +91,14 @@ struct ChannelGridView: View {
                                 Image(systemName: "tv")
                                     .foregroundStyle(.secondary)
                                 Text(channel.name)
+                                
+                                // Loading indicator for series
+                                if channel.isSeries && appState.isLoadingEpisodes && appState.selectedSeriesForEpisodes?.id == channel.id {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                        .frame(width: 12, height: 12)
+                                }
+                                
                                 Spacer()
                             }
                             
@@ -247,6 +255,7 @@ struct ChannelGridView: View {
 struct ChannelCard: View {
     let channel: Channel
     let isSelected: Bool
+    @Environment(AppState.self) private var appState
     
     var body: some View {
         VStack {
@@ -265,6 +274,18 @@ struct ChannelCard: View {
                 .font(.caption)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
+            
+            // Loading indicator for series
+            if channel.isSeries && appState.isLoadingEpisodes && appState.selectedSeriesForEpisodes?.id == channel.id {
+                HStack(spacing: 4) {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(width: 10, height: 10)
+                    Text("Loading...")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
             
             // EPG Program info (Live TV only)
             if !channel.isSeries {

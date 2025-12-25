@@ -67,6 +67,13 @@ struct FullscreenChannelBrowserView: View {
                                         .lineLimit(1)
                                         .foregroundStyle(isSelected ? .white : .primary)
                                     
+                                    // Loading indicator for series
+                                    if channel.isSeries && appState.isLoadingEpisodes && appState.selectedSeriesForEpisodes?.id == channel.id {
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                            .frame(width: 12, height: 12)
+                                    }
+                                    
                                     Spacer()
                                     
                                     if isSelected {
