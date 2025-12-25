@@ -13,6 +13,7 @@ class PlayerManager: NSObject, ObservableObject {
     private var currentStreamId: String?
     private var positionSaveTimer: Timer?
     private var debounceTask: Task<Void, Never>?
+    private var shouldDisableSubtitles: Bool = false
     
     override init() {
         super.init()
@@ -37,7 +38,44 @@ class PlayerManager: NSObject, ObservableObject {
         
         let media = VLCMedia(url: url)
         player.media = media
+        
+        // Flag to disable subtitles when they become available
+        shouldDisableSubtitles = true
+        
         player.play()
+        
+        // Log initial subtitle state
+        print("DEBUG: Subtitle → Initial state after play(): \(player.currentVideoSubTitleIndex)")
+        
+        // Disable subtitles by default - try multiple times to ensure it sticks
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            guard let self = self else { return }
+            print("DEBUG: Subtitle → State at 0.3s: \(self.player.currentVideoSubTitleIndex)")
+            print("DEBUG: Subtitle → Available tracks: \(String(describing: self.player.videoSubTitlesNames))")
+            print("DEBUG: Subtitle → Available indexes: \(String(describing: self.player.videoSubTitlesIndexes))")
+            if self.shouldDisableSubtitles {
+                self.player.currentVideoSubTitleIndex = -1
+                print("DEBUG: Subtitle → Set to -1 at 0.3s, current: \(self.player.currentVideoSubTitleIndex)")
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            guard let self = self else { return }
+            print("DEBUG: Subtitle → State at 0.7s: \(self.player.currentVideoSubTitleIndex)")
+            if self.shouldDisableSubtitles {
+                self.player.currentVideoSubTitleIndex = -1
+                print("DEBUG: Subtitle → Set to -1 at 0.7s, current: \(self.player.currentVideoSubTitleIndex)")
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self = self else { return }
+            print("DEBUG: Subtitle → State at 1.5s: \(self.player.currentVideoSubTitleIndex)")
+            if self.shouldDisableSubtitles {
+                self.player.currentVideoSubTitleIndex = -1
+                print("DEBUG: Subtitle → Set to -1 at 1.5s, current: \(self.player.currentVideoSubTitleIndex)")
+            }
+        }
         
         // Seek to saved position if provided
         if let position = startPosition {
@@ -53,6 +91,7 @@ class PlayerManager: NSObject, ObservableObject {
     
     func stop() {
         print("DEBUG: VLC → Stopping playback")
+        shouldDisableSubtitles = false
         saveCurrentPosition()
         stopPositionTracking()
         
@@ -156,6 +195,18 @@ extension PlayerManager: VLCMediaPlayerDelegate {
             
             // Check loading state
             print("DEBUG: VLC State Changed: \(player.state.rawValue)")
+            
+            // Disable subtitles when tracks become available (regardless of state)
+            if shouldDisableSubtitles {
+                if let subtitleTracks = player.videoSubTitlesNames as? [String], !subtitleTracks.isEmpty {
+                    print("DEBUG: Subtitle → Tracks now available in state \(player.state.rawValue): \(subtitleTracks)")
+                    print("DEBUG: Subtitle → Current index before disable: \(player.currentVideoSubTitleIndex)")
+                    player.currentVideoSubTitleIndex = -1
+                    print("DEBUG: Subtitle → Disabled on state change, current: \(player.currentVideoSubTitleIndex)")
+                    shouldDisableSubtitles = false // Only do this once per playback
+                }
+            }
+            
             switch player.state {
             case .opening, .buffering:
                 // Cancel pending stop
