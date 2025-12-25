@@ -399,6 +399,22 @@ struct MediaControlsView: View {
                             playerManager.setVolume(Int32(newValue))
                         }
                 }
+                
+                // Fullscreen toggle button
+                Button(action: {
+                    appState.fullscreenToggleSignal.toggle()
+                }) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.black.opacity(0.4))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: isFullscreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                    }
+                }
+                .buttonStyle(.plain)
+                .help(isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen")
             }
             .padding(20)
             .background(

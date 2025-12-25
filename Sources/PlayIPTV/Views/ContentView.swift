@@ -38,6 +38,12 @@ struct ContentView: View {
                 isVideoFullscreen = false
             }
         }
+        .onChange(of: appState.playPauseSignal) { _, _ in
+            PlayerManager.shared.togglePlayPause()
+        }
+        .onChange(of: appState.fullscreenToggleSignal) { _, _ in
+            isVideoFullscreen.toggle()
+        }
         .onKeyPress(.init("f")) {
             isVideoFullscreen.toggle()
             return .handled
@@ -192,31 +198,18 @@ struct ContentView: View {
             
             // Overlay buttons (hidden in video fullscreen)
             if !isVideoFullscreen {
-                HStack(spacing: 15) {
-                    Button(action: {
-                        isVideoFullscreen.toggle()
-                    }) {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.white.opacity(0.8))
-                            .background(Circle().fill(Color.black.opacity(0.4)).frame(width: 36, height: 36))
-                    }
-                    .buttonStyle(.plain)
-                    .help("Toggle Fullscreen")
-                    
-                    Button(action: {
-                        appState.selectedChannel = nil
-                        // Also explicitly stop the manager
-                        PlayerManager.shared.stop()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(.white.opacity(0.8))
-                            .background(Circle().fill(Color.black.opacity(0.4)))
-                    }
-                    .buttonStyle(.plain)
-                    .help("Stop Playback")
+                Button(action: {
+                    appState.selectedChannel = nil
+                    // Also explicitly stop the manager
+                    PlayerManager.shared.stop()
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .background(Circle().fill(Color.black.opacity(0.4)))
                 }
+                .buttonStyle(.plain)
+                .help("Stop Playback")
                 .padding(20)
             }
         }
