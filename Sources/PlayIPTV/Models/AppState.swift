@@ -147,8 +147,9 @@ class AppState {
     enum SettingsTab: Hashable {
         case general
         case sources
+        case about
     }
-    var settingsTab: SettingsTab = .general
+    var settingsTab: SettingsTab = .about
     
     // Playback Signals
     var playPauseSignal: Bool = false
@@ -164,6 +165,9 @@ class AppState {
     var selectedSeriesForEpisodes: Channel?
     var episodesForSeries: [Episode] = []
     var isLoadingEpisodes: Bool = false
+    
+    // Update notification
+    var showUpdateDialog: Bool = false
     
     init() {
         // Load Theme

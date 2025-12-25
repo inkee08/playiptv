@@ -13,7 +13,10 @@ struct PlayIPTVApp: App {
         WindowGroup {
             ContentView(appState: appState)
                 .environment(appState)
-                .onAppear { applyTheme(appState.theme) }
+                .onAppear {
+                    applyTheme(appState.theme)
+                    checkForUpdatesOnLaunch()
+                }
                 .onChange(of: appState.theme) { _, newTheme in
                     applyTheme(newTheme)
                 }
@@ -62,6 +65,25 @@ struct PlayIPTVApp: App {
             NSApp.appearance = NSAppearance(named: .darkAqua)
         case .system:
             NSApp.appearance = nil
+        }
+    }
+    
+    private func checkForUpdatesOnLaunch() {
+        Task { @MainActor in
+            let updateChecker = UpdateChecker.shared
+            
+            // Only check if 24 hours have passed since last check
+            guard updateChecker.shouldCheckForUpdates else {
+                print("DEBUG: Skipping update check - checked recently")
+                return
+            }
+            
+            await updateChecker.checkForUpdates()
+            
+            // Show dialog if update is available and not skipped
+            if updateChecker.isUpdateAvailable() {
+                appState.showUpdateDialog = true
+            }
         }
     }
 }

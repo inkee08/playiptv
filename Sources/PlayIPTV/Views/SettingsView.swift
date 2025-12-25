@@ -16,6 +16,12 @@ struct SettingsView: View {
                     Label("Sources", systemImage: "server.rack")
                 }
                 .tag(AppState.SettingsTab.sources)
+            
+            AboutSettingsView(appState: appState)
+                .tabItem {
+                    Label("About", systemImage: "info.circle")
+                }
+                .tag(AppState.SettingsTab.about)
         }
         .frame(width: 500, height: 400)
     }

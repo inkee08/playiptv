@@ -66,6 +66,26 @@ struct ContentView: View {
                 )
             }
         }
+        .sheet(isPresented: $appState.showUpdateDialog) {
+            if let release = UpdateChecker.shared.latestRelease {
+                UpdateNotificationView(
+                    release: release,
+                    onDownload: {
+                        if let url = URL(string: release.htmlUrl) {
+                            NSWorkspace.shared.open(url)
+                        }
+                        appState.showUpdateDialog = false
+                    },
+                    onSkip: {
+                        UpdateChecker.shared.skipVersion(release.tagName)
+                        appState.showUpdateDialog = false
+                    },
+                    onRemindLater: {
+                        appState.showUpdateDialog = false
+                    }
+                )
+            }
+        }
     }
     
     @ViewBuilder
