@@ -138,11 +138,15 @@ struct ContentView: View {
     }
     
     private func fullscreenPlayer(channel: Channel) -> some View {
-        ZStack(alignment: .topLeading) {
+        // Determine if this is Live TV (not movies or series)
+        let isLiveTV = !channel.isSeries && (channel.categoryId.lowercased().contains("live") || 
+                                              channel.groupTitle?.lowercased().contains("live") == true)
+        
+        return ZStack(alignment: .topLeading) {
             // Main content
             HStack(spacing: 0) {
-                // Channel Browser (Leading)
-                if appState.isChannelBrowserVisible {
+                // Channel Browser (Leading) - only for Live TV
+                if isLiveTV && appState.isChannelBrowserVisible {
                     FullscreenChannelBrowserView(appState: appState)
                         .frame(width: 320)
                         .transition(.move(edge: .leading))
@@ -155,27 +159,29 @@ struct ContentView: View {
                     }
             }
             
-            // Toggle button - on top of everything
-            Button(action: {
-                withAnimation {
-                    appState.isChannelBrowserVisible.toggle()
+            // Toggle button - only for Live TV
+            if isLiveTV {
+                Button(action: {
+                    withAnimation {
+                        appState.isChannelBrowserVisible.toggle()
+                    }
+                }) {
+                    ZStack {
+                        Circle()
+                        .fill(.black.opacity(0.8))
+                        .frame(width: 44, height: 44)
+                        
+                        Text(appState.isChannelBrowserVisible ? "◀" : "▶")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                    .shadow(color: .black.opacity(0.5), radius: 8, x: 0, y: 2)
                 }
-            }) {
-                ZStack {
-                    Circle()
-                    .fill(.black.opacity(0.8))
-                    .frame(width: 44, height: 44)
-                    
-                    Text(appState.isChannelBrowserVisible ? "◀" : "▶")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.white)
-                }
-                .shadow(color: .black.opacity(0.5), radius: 8, x: 0, y: 2)
+                .buttonStyle(.plain)
+                .help(appState.isChannelBrowserVisible ? "Hide Channels" : "Show Channels")
+                .padding(.leading, appState.isChannelBrowserVisible ? 340 : 20)
+                .padding(.top, 20)
             }
-            .buttonStyle(.plain)
-            .help(appState.isChannelBrowserVisible ? "Hide Channels" : "Show Channels")
-            .padding(.leading, appState.isChannelBrowserVisible ? 340 : 20)
-            .padding(.top, 20)
         }
         .ignoresSafeArea(edges: [.bottom, .leading, .trailing])
     }
