@@ -26,7 +26,7 @@ struct PlayerView: View {
         ZStack {
             SingletonVLCView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(nsColor: .textBackgroundColor))
+                .background(Color.black)
             
             // Loading Overlay
             if playerManager.isLoading {
@@ -108,7 +108,7 @@ struct SingletonVLCView: NSViewRepresentable {
         print("DEBUG: VLC → Returning singleton video view")
         let containerView = NSView()
         containerView.wantsLayer = true
-        containerView.layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
+        containerView.layer?.backgroundColor = NSColor.black.cgColor
         
         let vlcView = VLCViewContainer.shared.videoView
         vlcView.frame = containerView.bounds
@@ -117,7 +117,7 @@ struct SingletonVLCView: NSViewRepresentable {
         
         // Also set background on the VLC view itself
         vlcView.wantsLayer = true
-        vlcView.layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
+        vlcView.layer?.backgroundColor = NSColor.black.cgColor
         
         return containerView
     }
