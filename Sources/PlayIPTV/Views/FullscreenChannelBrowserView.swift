@@ -28,14 +28,14 @@ struct FullscreenChannelBrowserView: View {
                     TextField("Search...", text: $appState.channelSearchText)
                         .textFieldStyle(.plain)
                         .frame(width: 150)
-                    if !appState.channelSearchText.isEmpty {
-                        Button(action: { appState.channelSearchText = "" }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 14))
-                        }
-                        .buttonStyle(.plain)
+                    Button(action: { appState.channelSearchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 14))
                     }
+                    .buttonStyle(.plain)
+                    .opacity(appState.channelSearchText.isEmpty ? 0 : 1)
+                    .disabled(appState.channelSearchText.isEmpty)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
