@@ -61,6 +61,7 @@ class AppState {
         didSet {
             if oldValue?.id != selectedCategory?.id {
                 searchText = ""
+                channelSearchText = ""  // Also clear channel search when category changes
             }
         }
     }
