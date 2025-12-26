@@ -1,16 +1,28 @@
 import SwiftUI
 
-/// Optimized channel row view with Equatable to prevent unnecessary updates
-struct ChannelRowView: View, Equatable {
+/// Optimized channel row view that leans on Observation for performance
+struct ChannelRowView: View {
     let channel: Channel
-    let epgProgram: EPGProgram?
-    let isSelected: Bool
-    let isFavorited: Bool
-    let isLoading: Bool
-    let onTap: () -> Void
-    let onToggleFavorite: () -> Void
+    let appState: AppState
+    let favoritesManager = FavoritesManager.shared
     
     var body: some View {
+        let isSelected = appState.selectedChannel?.id == channel.id
+        let isLoading = channel.isSeries && appState.isLoadingEpisodes && appState.selectedSeriesForEpisodes?.id == channel.id
+        
+        // EPG Cache lookup
+        let cacheKey = "\(channel.sourceId.uuidString):\(channel.name)"
+        let epgProgram = appState.epgProgramCache[cacheKey]
+        
+        // Favorites check
+        let isFavorited: Bool = {
+            if let source = appState.sources.first(where: { $0.id == channel.sourceId }),
+               let sourceUrl = source.url?.absoluteString {
+                return favoritesManager.isFavorite(streamId: channel.streamId, sourceUrl: sourceUrl)
+            }
+            return false
+        }()
+        
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Image(systemName: "tv")
@@ -50,21 +62,30 @@ struct ChannelRowView: View, Equatable {
         .padding(.vertical, 8)
         .contentShape(Rectangle())
         .background(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
-        .onTapGesture(perform: onTap)
-        .contextMenu {
-            Button(action: onToggleFavorite) {
-                Label(isFavorited ? "Remove from Favorites" : "Add to Favorites", 
-                      systemImage: isFavorited ? "heart.slash" : "heart")
+        .onTapGesture {
+            if channel.isSeries {
+                Task {
+                    await appState.fetchEpisodesForSeries(channel)
+                    appState.episodeListSeries = channel
+                    appState.showingEpisodeList = true
+                }
+            } else {
+                appState.selectChannel(channel)
             }
         }
-    }
-    
-    // Equatable conformance - only update if these values change
-    static func == (lhs: ChannelRowView, rhs: ChannelRowView) -> Bool {
-        lhs.channel.id == rhs.channel.id &&
-        lhs.epgProgram?.id == rhs.epgProgram?.id &&
-        lhs.isSelected == rhs.isSelected &&
-        lhs.isFavorited == rhs.isFavorited &&
-        lhs.isLoading == rhs.isLoading
+        .contextMenu {
+            if let source = appState.sources.first(where: { $0.id == channel.sourceId }),
+               let sourceUrl = source.url?.absoluteString {
+                Button(action: {
+                    favoritesManager.toggleFavorite(channel: channel, sourceUrl: sourceUrl)
+                    Task { @MainActor in
+                        appState.updateEPGCache()
+                    }
+                }) {
+                    Label(isFavorited ? "Remove from Favorites" : "Add to Favorites", 
+                          systemImage: isFavorited ? "heart.slash" : "heart")
+                }
+            }
+        }
     }
 }

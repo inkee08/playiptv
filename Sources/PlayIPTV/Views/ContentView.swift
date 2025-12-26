@@ -111,7 +111,6 @@ struct ContentView: View {
         } content: {
             ChannelGridView(
                 appState: appState,
-                isLoadingEpisodes: appState.isLoadingEpisodes,
                 isListView: $isListView
             )
         } detail: {
@@ -168,7 +167,6 @@ struct ContentView: View {
         } detail: {
             ChannelGridView(
                 appState: appState,
-                isLoadingEpisodes: appState.isLoadingEpisodes,
                 isListView: $isListView
             )
         }
