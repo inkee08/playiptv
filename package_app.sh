@@ -196,9 +196,8 @@ tell application "Finder"
         update without registering applications
         delay 2
     end tell
-    
-    -- Close all Finder windows
-    close every window
+    -- Close only the installer window
+    close (every window whose name is "$APP_NAME")
 end tell
 EOF
     
