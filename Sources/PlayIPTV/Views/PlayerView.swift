@@ -481,6 +481,12 @@ struct MediaControlsView: View {
                 .help(isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen")
             }
             .padding(20)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                // Consume tap to prevent accidental control dismissal
+                // When user clicks within the control bar area (between buttons),
+                // it shouldn't hide the controls.
+            }
             .background(
                 LinearGradient(
                     colors: [.clear, .black.opacity(0.7)],
