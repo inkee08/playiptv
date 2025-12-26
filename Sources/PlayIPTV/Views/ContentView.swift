@@ -196,7 +196,7 @@ struct ContentView: View {
             }
             
             // Toggle button - only for Live TV
-            if isLiveTV {
+            if isLiveTV && appState.arePlayerControlsVisible {
                 Button(action: {
                     withAnimation {
                         appState.isChannelBrowserVisible.toggle()
@@ -217,6 +217,7 @@ struct ContentView: View {
                 .help(appState.isChannelBrowserVisible ? "Hide Channels" : "Show Channels")
                 .padding(.leading, appState.isChannelBrowserVisible ? 340 : 20)
                 .padding(.top, 20)
+                .transition(.opacity)
             }
         }
         .ignoresSafeArea(edges: [.bottom, .leading, .trailing])

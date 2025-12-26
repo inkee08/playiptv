@@ -173,6 +173,7 @@ class AppState {
     
     // Runtime state for channel browser (can be toggled independently)
     var isChannelBrowserVisible: Bool = false
+    var arePlayerControlsVisible: Bool = false
     var channelSearchText: String = "" {
         didSet {
             // Debounce search text changes

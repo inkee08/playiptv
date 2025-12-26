@@ -19,7 +19,6 @@ class VLCViewContainer {
 struct PlayerView: View {
     @Environment(AppState.self) private var appState
     @ObservedObject private var playerManager = PlayerManager.shared
-    @State private var showControls = false
     var isFullscreen: Bool = false
     
     var body: some View {
@@ -82,19 +81,19 @@ struct PlayerView: View {
             }
             
             // Media controls overlay
-            if showControls, let channel = appState.selectedChannel {
+            if appState.arePlayerControlsVisible, let channel = appState.selectedChannel {
                 MediaControlsView(channel: channel, isFullscreen: isFullscreen)
                     .transition(.opacity)
             }
         }
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.2)) {
-                showControls = hovering
+                appState.arePlayerControlsVisible = hovering
             }
         }
         .onTapGesture {
             withAnimation {
-                showControls.toggle()
+                appState.arePlayerControlsVisible.toggle()
             }
         }
         .onChange(of: appState.playPauseSignal) { _, _ in
