@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChannelGridView: View {
     @Bindable var appState: AppState
+    let isLoadingEpisodes: Bool // Explicit dependency passed from parent
     @Binding var isListView: Bool
     @State private var showEpisodePicker: Bool = false
     @State private var scrollPosition: UUID?
@@ -31,6 +32,36 @@ struct ChannelGridView: View {
         appState.selectedCategory?.id ?? "none"
     }
     
+    // Wrapper to force identity changes when state updates (selection, loading)
+    struct ChannelDisplayItem: Identifiable {
+        let channel: Channel
+        let isSelected: Bool
+        let isFavorited: Bool
+        let isLoading: Bool
+        
+        var id: String {
+            "\(channel.id)-\(isLoading)-\(isSelected)-\(isFavorited)"
+        }
+    }
+    
+    // Computed property to generate wrapped items
+    var displayItems: [ChannelDisplayItem] {
+        appState.filteredChannels.map { channel in
+            let isSelected = appState.selectedChannel?.id == channel.id
+            let isLoading = channel.isSeries && isLoadingEpisodes && appState.selectedSeriesForEpisodes?.id == channel.id
+            
+            let favoriteKey = "\(channel.sourceId.uuidString):\(channel.streamId)"
+            let isFavorited = appState.favoritesCache.contains(favoriteKey)
+            
+            return ChannelDisplayItem(
+                channel: channel, 
+                isSelected: isSelected, 
+                isFavorited: isFavorited,
+                isLoading: isLoading
+            )
+        }
+    }
+
     var body: some View {
         Group {
             if appState.showingEpisodeList, let series = appState.episodeListSeries {
@@ -88,31 +119,27 @@ struct ChannelGridView: View {
                     }
                     
                     
-                    ForEach(appState.filteredChannels) { channel in
-                        let cacheKey = "\(channel.sourceId.uuidString):\(channel.name)"
+                    ForEach(displayItems) { item in
+                        let cacheKey = "\(item.channel.sourceId.uuidString):\(item.channel.name)"
                         let cachedProgram = appState.epgProgramCache[cacheKey]
                         
-                        let favoriteKey = "\(channel.sourceId.uuidString):\(channel.streamId)"
-                        let isFavorited = appState.favoritesCache.contains(favoriteKey)
-                        
                         ChannelRowView(
-                            channel: channel,
+                            channel: item.channel,
                             epgProgram: cachedProgram,
-                            isSelected: appState.selectedChannel?.id == channel.id,
-                            isFavorited: isFavorited,
-                            onTap: { handleChannelTap(channel) },
+                            isSelected: item.isSelected,
+                            isFavorited: item.isFavorited,
+                            isLoading: item.isLoading,
+                            onTap: { handleChannelTap(item.channel) },
                             onToggleFavorite: {
-                                if let source = appState.sources.first(where: { $0.id == channel.sourceId }),
+                                if let source = appState.sources.first(where: { $0.id == item.channel.sourceId }),
                                    let sourceUrl = source.url?.absoluteString {
-                                    favoritesManager.toggleFavorite(channel: channel, sourceUrl: sourceUrl)
-                                    // Immediately update cache
+                                    favoritesManager.toggleFavorite(channel: item.channel, sourceUrl: sourceUrl)
                                     Task { @MainActor in
                                         appState.updateEPGCache()
                                     }
                                 }
                             }
                         )
-                        .id(channel.id)
                         
                         Divider()
                     }
@@ -171,9 +198,14 @@ struct ChannelGridView: View {
                     }
                     
                     LazyVGrid(columns: columns, spacing: 20) {
-                        ForEach(appState.filteredChannels) { channel in
-                            channelButton(for: channel)
-                                .id(channel.id)
+                        ForEach(displayItems) { item in
+                            ChannelButtonView(
+                                channel: item.channel,
+                                appState: appState,
+                                isSelected: item.isSelected,
+                                isLoading: item.isLoading,
+                                onTap: handleChannelTap
+                            )
                         }
                     }
                     .padding()
@@ -209,56 +241,20 @@ struct ChannelGridView: View {
         }
     }
     
-    @ViewBuilder
-    func channelButton(for channel: Channel) -> some View {
-        let isSelected = appState.selectedChannel?.id == channel.id
-        let cacheKey = "\(channel.sourceId.uuidString):\(channel.name)"
-        let cachedProgram = appState.epgProgramCache[cacheKey]
-        let isLoading = channel.isSeries && appState.isLoadingEpisodes && appState.selectedSeriesForEpisodes?.id == channel.id
-        
-        Button(action: {
-            handleChannelTap(channel)
-        }) {
-            ChannelCard(
-                channel: channel,
-                epgProgram: cachedProgram,
-                isSelected: isSelected,
-                isLoading: isLoading
-            )
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            if let source = appState.sources.first(where: { $0.id == channel.sourceId }),
-               let sourceUrl = source.url?.absoluteString {
-                let isFavorited = favoritesManager.isFavorite(streamId: channel.streamId, sourceUrl: sourceUrl)
-                Button(action: {
-                    favoritesManager.toggleFavorite(channel: channel, sourceUrl: sourceUrl)
-                }) {
-                    Label(isFavorited ? "Remove from Favorites" : "Add to Favorites", 
-                          systemImage: isFavorited ? "heart.slash" : "heart")
-                }
-            }
-        }
-    }
-    
     private func handleChannelTap(_ channel: Channel) {
         if channel.isSeries {
-            // Show inline episode list for series
             Task {
                 await appState.fetchEpisodesForSeries(channel)
                 appState.episodeListSeries = channel
                 appState.showingEpisodeList = true
             }
         } else {
-            // Direct playback for live TV and movies
-            print("DEBUG: Playing channel: \(channel.name)")
-            print("DEBUG: Stream URL: \(channel.streamUrl)")
             appState.selectChannel(channel)
         }
     }
 }
 
-struct ChannelCard: View, Equatable {
+struct ChannelCard: View {
     let channel: Channel
     let epgProgram: EPGProgram?
     let isSelected: Bool
@@ -307,12 +303,46 @@ struct ChannelCard: View, Equatable {
         .background(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
         .cornerRadius(16)
     }
+}
+
+struct ChannelButtonView: View {
+    let channel: Channel
+    var appState: AppState // Pass AppState by reference
+    let isSelected: Bool
+    let isLoading: Bool
+    let onTap: (Channel) -> Void
+    @ObservedObject var favoritesManager = FavoritesManager.shared
     
-    // Equatable conformance - only update if these values change
-    static func == (lhs: ChannelCard, rhs: ChannelCard) -> Bool {
-        lhs.channel.id == rhs.channel.id &&
-        lhs.epgProgram?.id == rhs.epgProgram?.id &&
-        lhs.isSelected == rhs.isSelected &&
-        lhs.isLoading == rhs.isLoading
+    var body: some View {
+        let cacheKey = "\(channel.sourceId.uuidString):\(channel.name)"
+        let cachedProgram = appState.epgProgramCache[cacheKey]
+        
+        Button(action: {
+            onTap(channel)
+        }) {
+            ChannelCard(
+                channel: channel,
+                epgProgram: cachedProgram,
+                isSelected: isSelected,
+                isLoading: isLoading
+            )
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            if let source = appState.sources.first(where: { $0.id == channel.sourceId }),
+               let sourceUrl = source.url?.absoluteString {
+                let isFavorited = favoritesManager.isFavorite(streamId: channel.streamId, sourceUrl: sourceUrl)
+                Button(action: {
+                    favoritesManager.toggleFavorite(channel: channel, sourceUrl: sourceUrl)
+                    Task { @MainActor in
+                        appState.updateEPGCache()
+                    }
+                }) {
+                    Label(isFavorited ? "Remove from Favorites" : "Add to Favorites", 
+                          systemImage: isFavorited ? "heart.slash" : "heart")
+                }
+            }
+        }
+        .id(channel.id) // Ensure implicit identity is tied to channel ID
     }
 }

@@ -109,7 +109,11 @@ struct ContentView: View {
             SidebarView(appState: appState)
                 .frame(width: 160)
         } content: {
-            ChannelGridView(appState: appState, isListView: $isListView)
+            ChannelGridView(
+                appState: appState,
+                isLoadingEpisodes: appState.isLoadingEpisodes,
+                isListView: $isListView
+            )
         } detail: {
             ZStack {
                 if let channel = appState.selectedChannel {
@@ -162,7 +166,11 @@ struct ContentView: View {
                     }
                 }
         } detail: {
-            ChannelGridView(appState: appState, isListView: $isListView)
+            ChannelGridView(
+                appState: appState,
+                isLoadingEpisodes: appState.isLoadingEpisodes,
+                isListView: $isListView
+            )
         }
         .navigationSplitViewStyle(.balanced)
     }

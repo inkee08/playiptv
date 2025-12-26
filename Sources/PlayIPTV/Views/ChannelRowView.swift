@@ -6,6 +6,7 @@ struct ChannelRowView: View, Equatable {
     let epgProgram: EPGProgram?
     let isSelected: Bool
     let isFavorited: Bool
+    let isLoading: Bool
     let onTap: () -> Void
     let onToggleFavorite: () -> Void
     
@@ -17,6 +18,15 @@ struct ChannelRowView: View, Equatable {
                 
                 Text(channel.name)
                     .lineLimit(1)
+                
+                if isLoading {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(width: 16, height: 16)
+                    Text("Loading...")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
                 
                 if isFavorited {
                     Image(systemName: "heart.fill")
@@ -54,6 +64,7 @@ struct ChannelRowView: View, Equatable {
         lhs.channel.id == rhs.channel.id &&
         lhs.epgProgram?.id == rhs.epgProgram?.id &&
         lhs.isSelected == rhs.isSelected &&
-        lhs.isFavorited == rhs.isFavorited
+        lhs.isFavorited == rhs.isFavorited &&
+        lhs.isLoading == rhs.isLoading
     }
 }
