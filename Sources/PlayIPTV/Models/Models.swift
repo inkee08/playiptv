@@ -28,7 +28,25 @@ struct Channel: Identifiable, Hashable {
     let streamUrl: URL
     let categoryId: String
     let groupTitle: String? // Raw group title from M3U
-    let isSeries: Bool // Flag to indicate if this is a series requiring episode selection
+    let isSeries: Bool // Flag to indicate if this is a series container requiring episode selection
+    
+    var isVODPlayback: Bool {
+        if isSeries { return false }
+        
+        let lowerGroup = groupTitle?.lowercased() ?? ""
+        let lowerCat = categoryId.lowercased()
+        
+        // Movie markers
+        if lowerCat.contains("movie") || lowerGroup.contains("movie") { return true }
+        
+        // Series Episode markers (when not the container)
+        if lowerCat.contains("series") || lowerGroup.contains("series") { return true }
+        
+        // Exclude live
+        if lowerCat.contains("live") || lowerGroup.contains("live") { return false }
+        
+        return false
+    }
 }
 
 struct Episode: Identifiable, Hashable {

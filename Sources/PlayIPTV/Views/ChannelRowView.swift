@@ -57,6 +57,29 @@ struct ChannelRowView: View {
                     .lineLimit(1)
                     .padding(.leading, 24)
             }
+            
+            // Progress bar (VOD only)
+            if channel.isVODPlayback {
+                let progress = PlaybackPositionManager.shared.getProgress(streamId: channel.streamId) ?? 0
+                if progress > 0 {
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(height: 3)
+                            
+                            Rectangle()
+                                .fill(Color.blue)
+                                .frame(width: geometry.size.width * progress, height: 3)
+                        }
+                        .cornerRadius(1.5)
+                    }
+                    .frame(height: 3)
+                    .padding(.leading, 24)
+                    .padding(.trailing, 20)
+                    .padding(.top, 2)
+                }
+            }
         }
         .padding(.horizontal)
         .padding(.vertical, 8)

@@ -254,6 +254,25 @@ struct ChannelCard: View {
                     .lineLimit(1)
                     .multilineTextAlignment(.center)
             }
+            
+            // Progress bar (VOD only)
+            if channel.isVODPlayback {
+                let progress = PlaybackPositionManager.shared.getProgress(streamId: channel.streamId) ?? 0
+                if progress > 0 {
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 3)
+                        
+                        Rectangle()
+                            .fill(Color.blue)
+                            .frame(width: 100 * progress, height: 3) // Assuming card width is roughly 100-120
+                    }
+                    .frame(maxWidth: 80) // Limit bar width
+                    .cornerRadius(1.5)
+                    .padding(.top, 2)
+                }
+            }
         }
         .padding()
         .background(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
