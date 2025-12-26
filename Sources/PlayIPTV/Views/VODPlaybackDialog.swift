@@ -26,7 +26,7 @@ struct VODPlaybackDialog: View {
                 .font(.system(size: 50))
                 .foregroundColor(.accentColor)
             
-            Text(savedPosition != nil ? "Resume Playback?" : "Play Movie?")
+            Text(savedPosition != nil ? "Resume Playback?" : "Play Video?")
                 .font(.title2)
                 .fontWeight(.semibold)
             

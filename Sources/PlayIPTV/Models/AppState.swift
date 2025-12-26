@@ -427,13 +427,16 @@ class AppState {
         // 2. It's in a Movie category OR doesn't have "Live" in its category/group
         let isMovie = channel.categoryId.lowercased().contains("movie") || 
                       channel.groupTitle?.lowercased().contains("movie") == true
+        let isSeriesEpisode = channel.categoryId.lowercased().contains("series") || 
+                             channel.groupTitle?.lowercased().contains("series") == true
         let isLiveTV = channel.categoryId.lowercased().contains("live") || 
                        channel.groupTitle?.lowercased().contains("live") == true
         
-        let isVOD = !channel.isSeries && isMovie && !isLiveTV
+        // A channel is VOD if it's not a Live stream or a Series container itself
+        let isVOD = !channel.isSeries && (isMovie || isSeriesEpisode) && !isLiveTV
         
         print("DEBUG: selectChannel - \(channel.name)")
-        print("DEBUG: isSeries: \(channel.isSeries), isMovie: \(isMovie), isLiveTV: \(isLiveTV), isVOD: \(isVOD)")
+        print("DEBUG: isSeries: \(channel.isSeries), isMovie: \(isMovie), isSeriesEpisode: \(isSeriesEpisode), isLiveTV: \(isLiveTV), isVOD: \(isVOD)")
         
         if isVOD {
             // Check for saved position
@@ -456,55 +459,58 @@ class AppState {
             PlaybackPositionManager.shared.clearPosition(streamId: channel.streamId)
         }
         
-        // Track in recent VOD (movies only, not series)
-        if !channel.isSeries,
-           let source = sources.first(where: { $0.id == channel.sourceId }),
-           let sourceUrlString = source.url?.absoluteString {
-               
-            RecentVODManager.shared.addRecentVOD(
-                streamId: channel.streamId,
-                name: channel.name,
-                logoUrl: channel.logoUrl,
-                sourceUrl: sourceUrlString,
-                isSeries: false
-            )
-        }
+        trackRecentVOD(channel)
         
         selectedChannel = channel
         showVODDialog = false
         vodDialogChannel = nil
         vodDialogSavedPosition = nil
-        playChannel(channel, startPosition: nil)
+        handlePlaybackTrigger()
     }
     
     func resumeVOD() {
-        guard let channel = vodDialogChannel,
-              let position = vodDialogSavedPosition else { return }
+        guard let channel = vodDialogChannel else { return }
         
-        // Track in recent VOD (movies only, not series)
-        if !channel.isSeries,
-           let source = sources.first(where: { $0.id == channel.sourceId }),
-           let sourceUrlString = source.url?.absoluteString {
-            RecentVODManager.shared.addRecentVOD(
-                streamId: channel.streamId,
-                name: channel.name,
-                logoUrl: channel.logoUrl,
-                sourceUrl: sourceUrlString,
-                isSeries: false
-            )
-        }
+        trackRecentVOD(channel)
         
         selectedChannel = channel
         showVODDialog = false
         vodDialogChannel = nil
         vodDialogSavedPosition = nil
-        playChannel(channel, startPosition: position)
+        handlePlaybackTrigger()
     }
     
     func cancelVOD() {
         showVODDialog = false
         vodDialogChannel = nil
         vodDialogSavedPosition = nil
+    }
+    
+    private func trackRecentVOD(_ channel: Channel) {
+        // Find source URL
+        guard let source = sources.first(where: { $0.id == channel.sourceId }),
+           let sourceUrlString = source.url?.absoluteString else { return }
+        
+        if let seriesId = currentSeriesId,
+           let series = channels.first(where: { $0.streamId == seriesId && $0.isSeries }) {
+            // It's a series episode - track the parent series
+            RecentVODManager.shared.addRecentVOD(
+                streamId: series.streamId,
+                name: series.name,
+                logoUrl: series.logoUrl,
+                sourceUrl: sourceUrlString,
+                isSeries: true
+            )
+        } else if !channel.isSeries {
+            // It's a movie - track the movie itself
+            RecentVODManager.shared.addRecentVOD(
+                streamId: channel.streamId,
+                name: channel.name,
+                logoUrl: channel.logoUrl,
+                sourceUrl: sourceUrlString,
+                isSeries: false
+            )
+        }
     }
     
     // Filtered channels - updated via debounce
