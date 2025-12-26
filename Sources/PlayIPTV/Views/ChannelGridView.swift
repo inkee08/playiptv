@@ -140,6 +140,7 @@ struct ChannelGridView: View {
                                 }
                             }
                         )
+                        .id(item.channel.id.uuidString)
                         
                         Divider()
                     }
@@ -150,24 +151,26 @@ struct ChannelGridView: View {
                 // When switching categories, scroll to selected channel if it's in this category
                 if let selectedChannel = appState.selectedChannel,
                    appState.filteredChannels.contains(where: { $0.id == selectedChannel.id }) {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        proxy.scrollTo(selectedChannel.id, anchor: .center)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        proxy.scrollTo(selectedChannel.id.uuidString, anchor: .center)
                     }
                 }
             }
             .onChange(of: appState.channelSearchText) { oldValue, newValue in
-                // When search is cleared, scroll to selected channel instantly
+                // When search is cleared, scroll to selected channel with a slight delay
                 if !oldValue.isEmpty && newValue.isEmpty {
                     if let selectedId = appState.selectedChannel?.id {
-                        proxy.scrollTo(selectedId, anchor: .center)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            proxy.scrollTo(selectedId.uuidString, anchor: .center)
+                        }
                     }
                 }
             }
             .onAppear {
                 // When list view appears, scroll to selected channel
                 if let selectedId = appState.selectedChannel?.id {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        proxy.scrollTo(selectedId, anchor: .center)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        proxy.scrollTo(selectedId.uuidString, anchor: .center)
                     }
                 }
             }
@@ -206,6 +209,7 @@ struct ChannelGridView: View {
                                 isLoading: item.isLoading,
                                 onTap: handleChannelTap
                             )
+                            .id(item.channel.id.uuidString)
                         }
                     }
                     .padding()
@@ -216,24 +220,26 @@ struct ChannelGridView: View {
                 // When switching categories, scroll to selected channel if it's in this category
                 if let selectedChannel = appState.selectedChannel,
                    appState.filteredChannels.contains(where: { $0.id == selectedChannel.id }) {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        proxy.scrollTo(selectedChannel.id, anchor: .center)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        proxy.scrollTo(selectedChannel.id.uuidString, anchor: .center)
                     }
                 }
             }
             .onChange(of: appState.channelSearchText) { oldValue, newValue in
-                // When search is cleared, scroll to selected channel instantly
+                // When search is cleared, scroll to selected channel with a slight delay
                 if !oldValue.isEmpty && newValue.isEmpty {
                     if let selectedId = appState.selectedChannel?.id {
-                        proxy.scrollTo(selectedId, anchor: .center)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            proxy.scrollTo(selectedId.uuidString, anchor: .center)
+                        }
                     }
                 }
             }
             .onAppear {
                 // When grid view appears, scroll to selected channel
                 if let selectedId = appState.selectedChannel?.id {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        proxy.scrollTo(selectedId, anchor: .center)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        proxy.scrollTo(selectedId.uuidString, anchor: .center)
                     }
                 }
             }
